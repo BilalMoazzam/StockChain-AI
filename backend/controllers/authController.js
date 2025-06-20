@@ -4,11 +4,14 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 // Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE }
+  );
 };
+
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -17,7 +20,6 @@ const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password, phone, role, department } = req.body;
 
-    // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({
@@ -26,7 +28,6 @@ const register = async (req, res) => {
       });
     }
 
-    // Create user
     const user = await User.create({
       firstName,
       lastName,
@@ -37,7 +38,6 @@ const register = async (req, res) => {
       department: department || 'Inventory'
     });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -48,11 +48,11 @@ const register = async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        fullName: user.fullName,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        department: user.department,
-        fullName: user.fullName
+        department: user.department
       }
     });
   } catch (error) {
@@ -71,9 +71,8 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check for user and include password
     const user = await User.findOne({ email }).select('+password');
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -81,7 +80,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Check if user is active
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
@@ -89,7 +87,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -98,11 +95,9 @@ const login = async (req, res) => {
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -113,11 +108,11 @@ const login = async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        fullName: user.fullName,
         email: user.email,
         phone: user.phone,
         role: user.role,
         department: user.department,
-        fullName: user.fullName,
         lastLogin: user.lastLogin
       }
     });
@@ -136,18 +131,24 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     res.status(200).json({
       success: true,
       user: {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        fullName: user.fullName,
         email: user.email,
         phone: user.phone,
         role: user.role,
         department: user.department,
-        fullName: user.fullName,
         lastLogin: user.lastLogin,
         profileImage: user.profileImage
       }
@@ -176,21 +177,16 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(20).toString('hex');
-    
-    // Hash token and set to resetPasswordToken field
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    // In a real application, you would send an email here
-    // For now, we'll just return the token (remove this in production)
     res.status(200).json({
       success: true,
-      message: 'Password reset email sent',
-      resetToken // Remove this in production
+      message: 'Password reset link sent to email',
+      resetToken // ⚠️ Only for dev; remove in production
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -207,8 +203,7 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
-    
-    // Get hashed token
+
     const resetPasswordToken = crypto
       .createHash('sha256')
       .update(req.params.resettoken)
@@ -226,13 +221,11 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Set new password
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -254,8 +247,7 @@ const resetPassword = async (req, res) => {
 // @access  Private
 const logout = async (req, res) => {
   try {
-    // In a stateless JWT system, logout is handled on the client side
-    // by removing the token. Here we just send a success response.
+    // Client clears token
     res.status(200).json({
       success: true,
       message: 'Logout successful'

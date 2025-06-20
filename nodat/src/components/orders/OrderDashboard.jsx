@@ -48,8 +48,11 @@ export function OrderDashboard({
     );
     if (!localProductList) return;
 
-    const parsedList = JSON.parse(localProductList);
+    const parsedList = JSON.parse(localProductList).filter(
+      (p) => p && typeof p.price === "number"
+    );
     const updated = [...selectedProducts, ...parsedList];
+
     setSelectedProducts(updated);
     localStorage.setItem("selectedProducts", JSON.stringify(updated));
     localStorage.removeItem("selectedProductFromInventory");
@@ -78,7 +81,7 @@ export function OrderDashboard({
   };
 
   const draftOrderTotal = selectedProducts.reduce(
-    (sum, p) => sum + (p.price || 0),
+    (sum, p) => sum + (p.totalPrice || p.price * p.quantity || 0),
     0
   );
   const draftOrder = selectedProducts.length
@@ -87,8 +90,6 @@ export function OrderDashboard({
         total: draftOrderTotal,
       }
     : null;
-
-  // 🧮 Summary Values (including draft)
   const totalOrders = orders.length + selectedProducts.length;
   const pendingOrders =
     orders.filter((o) => o.status === "Pending").length +
@@ -105,8 +106,11 @@ export function OrderDashboard({
   const totalRevenue =
     orders
       .filter((o) => o.status !== "Cancelled")
-      .reduce((sum, o) => sum + o.total, 0) +
-    selectedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+      .reduce((sum, o) => sum + o.total, 0) + draftOrderTotal;
+  const totalQuantity = selectedProducts.reduce(
+    (sum, p) => sum + (p.quantity || 0),
+    0
+  );
 
   const trimmedSearchTerm = searchTerm.trim().toLowerCase();
 
@@ -126,14 +130,28 @@ export function OrderDashboard({
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const handleRemoveFromOrder = (indexToRemove) => {
-    const updated = selectedProducts.filter(
-      (_, index) => index !== indexToRemove
-    );
-    setSelectedProducts(updated);
-    localStorage.setItem("selectedProducts", JSON.stringify(updated));
-    console.log("❌ Removed product at index:", indexToRemove);
-  };
+  const handleRemoveFromOrder = (productToRemove) => {
+  const remaining = selectedProducts.filter(
+    (p) => (p.id || p.sku) !== (productToRemove.id || productToRemove.sku)
+  );
+  const inventoryData =
+    JSON.parse(localStorage.getItem("persistedInventory")) || [];
+  const restoredInventory = inventoryData.map((item) => {
+    if (item.id === productToRemove.id) {
+      return {
+        ...item,
+        quantity: item.quantity + (productToRemove.quantity || 0),
+      };
+    }
+    return item;
+  });
+
+  localStorage.setItem("selectedProducts", JSON.stringify(remaining));
+  localStorage.setItem("persistedInventory", JSON.stringify(restoredInventory));
+
+  setSelectedProducts(remaining);
+  console.log("✅ Inventory fully restored for:", productToRemove.name);
+};
 
   const handleAddToOrder = (product) => {
     const alreadyExists = selectedProducts.some((p) => p.sku === product.sku);
@@ -148,8 +166,20 @@ export function OrderDashboard({
     console.log("🛒 Product manually added via button:", product);
   };
   const handleBuyNow = (product) => {
-  navigate("/blockchain-transaction", { state: { product } });
-};
+    navigate("/blockchain-transaction", { state: { product } });
+  };
+  const mergedSelectedProducts = Object.values(
+    selectedProducts.reduce((acc, product) => {
+      const key = product.id || product.sku;
+      if (!acc[key]) {
+        acc[key] = { ...product };
+      } else {
+        acc[key].quantity += product.quantity;
+        acc[key].totalPrice += product.totalPrice;
+      }
+      return acc;
+    }, {})
+  );
 
   return (
     <div className="order-dashboard">
@@ -201,9 +231,8 @@ export function OrderDashboard({
             <Truck size={24} />
           </div>
           <div className="stat-content">
-            <h3>Shipped Orders</h3>
-            <div className="stat-value">{shippedOrders}</div>
-            <div className="stat-sub">In Transit</div>
+            <h3>Order Items</h3>
+            <div className="stat-value">{totalQuantity}</div>
           </div>
         </div>
 
@@ -292,7 +321,18 @@ export function OrderDashboard({
             </thead>
 
             <tbody className="order-page-data-from-inventory-page">
-              {selectedProducts.map((product, index) => (
+              {Object.values(
+                selectedProducts.reduce((acc, product) => {
+                  const key = product.id || product.sku;
+                  if (!acc[key]) {
+                    acc[key] = { ...product };
+                  } else {
+                    acc[key].quantity += product.quantity;
+                    acc[key].totalPrice += product.totalPrice;
+                  }
+                  return acc;
+                }, {})
+              ).map((product, index) => (
                 <tr
                   key={`${product.sku}-${index}`}
                   className="bg-yellow-50 font-medium rounded-lg shadow-sm hover:bg-yellow-100 transition duration-150"
@@ -300,17 +340,24 @@ export function OrderDashboard({
                   <td className="px-4 py-4">{product.name}</td>
                   <td className="px-4 py-4">{product.customerName || "N/A"}</td>
                   <td className="px-4 py-4">{product.category || "Demo"}</td>
-                  <td className="px-4 py-4">Rs. {product.price}</td>
+                  <td className="px-4 py-4">Rs. {product.totalPrice}</td>
                   <td className="px-4 py-4">
                     {product.status || "Out of Stock"}
                   </td>
-                  <td className="px-4 py-4">{product.stock || product.sku}</td>
+                  <td
+                    style={{
+                      paddingInline: "35px",
+                      display: "flex",
+                    }}
+                  >
+                    {product.quantity || 1}
+                  </td>
                   <td className="px-4 py-4">
                     {new Date().toLocaleDateString()}
                   </td>
                   <td className="action-btn-space">
                     <button
-                      onClick={() => handleRemoveFromOrder(index)}
+                      onClick={() => handleRemoveFromOrder(product)}
                       className="remove-from-order-btn"
                     >
                       Remove
@@ -326,6 +373,7 @@ export function OrderDashboard({
                 </tr>
               ))}
 
+              {/* ⬇️ Render filtered orders (from backend or stored data) */}
               {filteredOrders.map((order) => (
                 <tr
                   key={order.id}
@@ -349,6 +397,7 @@ export function OrderDashboard({
                 </tr>
               ))}
 
+              {/* 🔒 Empty state */}
               {filteredOrders.length === 0 && selectedProducts.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-center py-4 text-gray-500">

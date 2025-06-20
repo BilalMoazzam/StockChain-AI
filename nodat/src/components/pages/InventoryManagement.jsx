@@ -22,18 +22,20 @@ const InventoryManagement = () => {
 
   // ✅ Correct function to use when adding product to order
   const handleAddToOrder = (product) => {
-  // 1. Add or update array in localStorage
-  const existing = localStorage.getItem("selectedProductFromInventory");
-  const parsed = existing ? JSON.parse(existing) : [];
-  const alreadyExists = parsed.some((p) => p.sku === product.sku);
-  if (!alreadyExists) {
-    parsed.push(product);
-    localStorage.setItem("selectedProductFromInventory", JSON.stringify(parsed));
-  }
-  // 2. Navigate to orders page
-  navigate("/orders", { replace: false });
-};
-
+    // 1. Add or update array in localStorage
+    const existing = localStorage.getItem("selectedProductFromInventory");
+    const parsed = existing ? JSON.parse(existing) : [];
+    const alreadyExists = parsed.some((p) => p.sku === product.sku);
+    if (!alreadyExists) {
+      parsed.push(product);
+      localStorage.setItem(
+        "selectedProductFromInventory",
+        JSON.stringify(parsed)
+      );
+    }
+    // 2. Navigate to orders page
+    navigate("/orders", { replace: false });
+  };
 
   const addToOrderDraft = (product) => {
     // Save to localStorage
@@ -105,29 +107,21 @@ const InventoryManagement = () => {
 
         const mapped = data.map((p) => ({
           id: p.id ?? p._id,
-          name: p.name,
-          sku: p.sku || "",
-          price: p.price ?? 0,
-          quantity: p.stock ?? 0,
-          size: Array.isArray(p.sizes)
-            ? p.sizes.join(", ")
-            : Array.isArray(p.size)
-            ? p.size.join(", ")
-            : p.size || "N/A",
-          color: Array.isArray(p.colors)
-            ? p.colors.join(", ")
-            : Array.isArray(p.color)
-            ? p.color.join(", ")
-            : p.color || "N/A",
-          category: p.category || "N/A",
-          supplier: p.supplier || "N/A",
-          status: (p.stock ?? 0) === 0 ? "Out of Stock" : "In Stock",
+          productId: p.productId ?? "N/A",
+          name: p.name ?? "Unnamed Product",
+          brand: p.brand ?? "N/A",
+          gender: p.gender ?? "N/A",
+          price: typeof p.price === "number" ? p.price : 0,
+          quantity: typeof p.quantity === "number" ? p.quantity : 0,
+          category: p.category ?? "N/A",
+          color: p.PrimaryColor ?? p.color ?? "N/A",
+          status: p.stock ?? "Unknown",
+          description: p.description ?? "",
           imageUrl: p.imageUrl || "",
           lastUpdated: p.updatedAt
             ? new Date(p.updatedAt).toLocaleDateString()
             : "N/A",
         }));
-
         setInventory(mapped);
         setLoading(false);
       } catch (error) {
