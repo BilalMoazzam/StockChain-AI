@@ -1,85 +1,52 @@
-const mongoose = require('mongoose');
-// const bcrypt = require('bcryptjs');
-const bcrypt = require('bcryptjs');
+// models/User.js
+const mongoose = require("mongoose")
 
-
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
   firstName: {
     type: String,
-    required: [true, 'First name is required'],
-    trim: true,
-    maxlength: [50, 'First name cannot exceed 50 characters']
+    required: [true, "Please add a first name"],
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
-    trim: true,
-    maxlength: [50, 'Last name cannot exceed 50 characters']
+    required: [true, "Please add a last name"],
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: [true, "Please add an email"],
     unique: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    match: [
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+      "Please add a valid email",
+    ],
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false
+    required: [true, "Please add a password"],
+    minlength: 6,
+    select: false, // Don't return password in queries
   },
-  phone: {
-    type: String,
-    required: [true, 'Phone number is required'],
-    match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
-  },
+  phone: String,
   role: {
     type: String,
-    enum: ['Admin', 'Manager', 'Employee', 'Viewer'],
-    default: 'Employee'
+    enum: ["Admin", "Manager", "Employee"],
+    default: "Employee",
   },
   department: {
     type: String,
-    enum: ['Inventory', 'Sales', 'Procurement', 'Logistics', 'Finance', 'IT'],
-    default: 'Inventory'
+    default: "General",
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: true,
   },
   lastLogin: {
-    type: Date
+    type: Date,
+    default: Date.now,
   },
-  profileImage: {
-    type: String,
-    default: ''
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date
-}, {
-  timestamps: true
-});
+})
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-  console.log('Password received:', req.body.password);
-
-});
-
-
-// Compare password method
-userSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-// Get full name virtual
-userSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
-});
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", UserSchema)

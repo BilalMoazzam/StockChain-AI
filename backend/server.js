@@ -1,11 +1,11 @@
 // server.js
 require('dotenv').config();
 
-const express    = require('express');
-const mongoose   = require('mongoose');
-const cors       = require('cors');
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
 const errorHandler = require('./middleware/errorHandler');
-const Product    = require('./models/Product');
+const Product = require('./models/Product');
 
 const app = express();
 
@@ -15,24 +15,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ───────────────── ROUTES ───────────────── */
-app.use('/api/admin',     require('./routes/admin'));
-app.use('/api/auth',      require('./routes/auth')); // ✅ KEEP ONLY THIS
-app.use('/api/users',     require('./routes/users'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/auth', require('./routes/auth')); // ✅ KEEP ONLY THIS
+app.use('/api/users', require('./routes/users'));
 app.use('/api/inventory', require('./routes/inventory'));
-app.use('/api/products',  require('./routes/productRoutes'));
-app.use('/api/orders',    require('./routes/orders'));
-
-// sample admin/users
-app.route('/api/admin/users')
-  .get((_, res) => res.json([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]))
-  .post((req, res) => res.status(201).json({ message: 'User created', user: req.body }));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/orders', require('./routes/orders'));
 
 // health check
 app.get('/', (_, res) =>
   res.json({ message: '🟢 StockChain API is running!', version: '1.0.0' })
 );
 
-// 404 + central error handler
+// 404 + error handler
 app.use((_, res) => res.status(404).json({ message: 'Route not found' }));
 app.use(errorHandler);
 
@@ -40,16 +35,18 @@ app.use(errorHandler);
 const connectDB = async () => {
   try {
     const LOCAL_URI = 'mongodb://127.0.0.1:27017/clothing_store';
-    const uri       = process.env.MONGO_URI || LOCAL_URI;
+    const uri = process.env.MONGO_URI || LOCAL_URI;
+
     const opts = uri.startsWith('mongodb+srv')
       ? { dbName: 'clothing_store' }
       : { dbName: 'clothing_store', directConnection: true, serverSelectionTimeoutMS: 5000 };
 
     await mongoose.connect(uri, opts);
-    console.log(`✅ MongoDB connected ➜  DB: ${mongoose.connection.name}`);
+    console.log(`✅ MongoDB connected ➜ DB: ${mongoose.connection.name}`);
 
     const collections = await mongoose.connection.db.listCollections().toArray();
     console.log('📁 Collections:', collections.map(c => c.name));
+
     const productCount = await Product.countDocuments();
     console.log(`🛒 Products count: ${productCount}`);
   } catch (err) {

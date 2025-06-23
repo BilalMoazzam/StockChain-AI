@@ -1,137 +1,142 @@
+/* Existing styles for UserManagement.css */
+
 .user-management {
-  padding: 0;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 60px); /* Adjust based on header height */
 }
 
 .user-management-container {
-  padding: 20px;
+  max-width: 1500px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 30px;
 }
 
 .user-management-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
 }
 
 .user-management-header h2 {
-  font-size: 16px;
-  font-weight: 400;
-  color: #666;
+  font-size: 1.8rem;
+  color: #333;
   margin: 0;
 }
 
-.btn {
+.btn-add {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-  outline: none;
-}
-
-.btn svg {
-  margin-right: 8px;
-}
-
-.btn-add {
-  background-color: #ffc107;
-  color: #333;
+  gap: 8px;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
 }
 
 .btn-add:hover {
-  background-color: #ffb300;
+  background-color: #0056b3;
+}
+
+.user-management-content {
+  margin-top: 20px;
 }
 
 .user-management-filters {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  gap: 15px;
 }
 
 .search-bar {
   display: flex;
   align-items: center;
-  background-color: #fff;
-  border-radius: 4px;
-  padding: 0 15px;
-  width: 300px;
-  height: 40px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px 12px;
+  flex-grow: 1;
+  max-width: 400px;
+  background-color: #fdfdfd;
 }
 
 .search-bar input {
   border: none;
   outline: none;
-  width: 100%;
-  margin-left: 10px;
-  font-size: 14px;
+  flex-grow: 1;
+  padding-left: 10px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.search-bar svg {
+  color: #888;
 }
 
 .filter-dropdown select {
-  height: 40px;
-  padding: 0 15px;
-  border-radius: 4px;
+  padding: 8px 12px;
   border: 1px solid #ddd;
-  background-color: #fff;
-  font-size: 14px;
-  outline: none;
+  border-radius: 5px;
+  background-color: #fdfdfd;
+  font-size: 0.9rem;
+  color: #333;
   cursor: pointer;
+  outline: none;
 }
 
+.loading {
+  text-align: center;
+  padding: 50px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+/* Styles for UserTable */
 .user-table-container {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  width: 100%;
 }
 
 .user-table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 20px;
+  table-layout: fixed; /* Helps with column width distribution */
 }
 
 .user-table th,
 .user-table td {
-  padding: 16px;
+  padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  word-wrap: break-word; /* Prevent long words from overflowing */
 }
 
 .user-table th {
-  font-size: 12px;
+  background-color: #f2f2f2;
+  color: #555;
   font-weight: 600;
-  color: #666;
+  font-size: 0.9rem;
   text-transform: uppercase;
 }
 
-.user-table tr:last-child td {
-  border-bottom: none;
+.user-table td {
+  font-size: 0.9rem;
+  color: #444;
 }
 
-.user-cell {
-  min-width: 200px;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.user-email {
-  font-size: 12px;
-  color: #666;
+.user-table tbody tr:hover {
+  background-color: #f5f5f5;
 }
 
 .status-badge {
@@ -152,87 +157,63 @@
   color: #9e9e9e;
 }
 
-/* Ensure no clipping in table */
-table, tbody, tr, td {
-  /* background-color: #4caf50; */
-  overflow: visible !important;
-  position: relative; /* for absolute child dropdowns */
+/* Inline Actions */
+.inline-actions {
+  display: flex;
+  gap: 8px; /* Space between buttons */
+  flex-wrap: wrap; /* Allow buttons to wrap if space is tight */
 }
 
-/* Specific cell width */
-.actions-cell-1 {
-  width: 60px;
-  position: relative;
-  overflow: visible;
-  /* height: 100  px; */
-}
-
-/* Main dropdown container */
-.dropdown-container {
-      height: 30px;
-  position: relative;
-}
-
-/* Button styling */
-.action-btn {
-  background-color: #4caf50;
+/* Unified action button style */
+.action-btn-disable {
+  width: 120px;
   background: none;
-  border: none;
+  border: 1px solid #ddd; /* Added border for better visibility */
+  padding: 6px 10px;
+  border-radius: 5px;
   cursor: pointer;
-  color: #666;
+  color: #177410;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
+  gap: 5px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  white-space: nowrap; /* Prevent text from breaking */
 }
 
-.action-btn:hover {
-  background-color: #f5f5f5;
+.action-btn-disable:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  color: #177410;
 }
 
-/* Dropdown menu */
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border: 1px solid #ddd;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  width: 150px;
-}
-
-/* Dropdown item */
-.dropdown-item {
+.action-btn-delete {
+  width: 120px;
+  color: #e41c30;
+  border-color: #dc3545;
+  background: none;
+  border: 1px solid #ddd; 
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  font-size: 14px;
-  color: #333;
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
+  gap: 5px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.dropdown-item svg {
-  margin-right: 8px;
+.action-btn-delete:hover:not(:disabled) {
+  background-color: #ffebeb;
+  color: #a71d2a;
 }
 
-.dropdown-item:hover {
-  background-color: #f5f5f5;
-}
-
-/* Delete item styling */
-.dropdown-item.delete {
-  color: #f44336;
-}
-
-.dropdown-item.delete:hover {
-  background-color: #fee2e2;
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f9f9f9;
+  border-color: #eee;
+  color: #aaa;
 }
 
 .no-data {
@@ -241,198 +222,137 @@ table, tbody, tr, td {
   color: #666;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-/* Modal Styles */
+/* AddUserModal styles (if not already defined) */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
-.modal {
-  background-color: #fff;
+.modal-content {
+  background: white;
+  padding: 30px;
   border-radius: 8px;
-  width: 500px;
-  max-width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
 }
 
-.user-modal {
-  width: 400px;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
+.modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
   background: none;
   border: none;
+  font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #888;
 }
 
-.modal-body {
-  padding: 24px;
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.5rem;
 }
 
-.modal-description {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 24px;
+.modal-content .form-field {
+  margin-bottom: 15px;
 }
 
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
+.modal-content label {
   display: block;
-  font-size: 14px;
+  margin-bottom: 5px;
   font-weight: 500;
-  margin-bottom: 8px;
+  color: #555;
 }
 
-.form-group input,
-.form-group select {
+.modal-content input[type="text"],
+.modal-content input[type="email"],
+.modal-content input[type="password"],
+.modal-content select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
 }
 
-.form-group input.error,
-.form-group select.error {
-  border-color: #f44336;
-}
-
-.error-message {
-  color: #f44336;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.btn-cancel {
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.btn-cancel:hover {
-  background-color: #e0e0e0;
-}
-
-.btn-save {
-  background-color: #ffc107;
-  color: #333;
-}
-
-.btn-save:hover {
-  background-color: #ffb300;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 50;
-}
-
-.modal {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  width: 100%;
-  max-width: 500px;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-input.error,
-select.error {
-  border-color: red;
-}
-
-.error-message {
-  color: red;
-  font-size: 0.8rem;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.btn-cancel {
-  background-color: #ccc;
-}
-
-.btn-save {
-  background-color: #4caf50;
+.modal-content .btn-save {
+  background-color: #28a745;
   color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.modal-content .btn-save:hover {
+  background-color: #218838;
+}
+
+/* Styles for the current user's row in the table */
+.current-user-row {
+  background-color: #e6f7ff; /* Light blue background */
+  font-weight: 600;
+  border-left: 4px solid #007bff; /* Blue border on the left */
+}
+
+.current-user-badge {
+  background-color: #007bff;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Hide the separate profile card styles as it's removed */
+.current-user-profile-card {
+  display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .user-management-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-bar {
+    max-width: 100%;
+  }
+
+  .filter-dropdown select {
+    width: 100%;
+  }
+
+  .user-table th,
+  .user-table td {
+    padding: 8px 10px; /* Reduce padding on smaller screens */
+  }
+
+  .inline-actions {
+    flex-direction: column; /* Stack buttons vertically on small screens */
+    gap: 5px;
+  }
+
+  .action-btn {
+    width: 100%; /* Make buttons full width */
+    justify-content: center;
+  }
 }

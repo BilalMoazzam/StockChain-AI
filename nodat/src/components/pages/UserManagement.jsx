@@ -1,150 +1,165 @@
 "use client"
 
-import { useState, useEffect } from "react";
-import Header from "../layout/Header";
-import UserTable from "../UserTable";
-import AddUserModal from "../AddUserModal";
-import { Search, UserPlus } from "lucide-react";
-import "../styles/UserManagement.css";
-import axios from "axios";
+import { useState, useEffect, useCallback } from "react"
+import Header from "../layout/Header"
+import UserTable from "../UserTable"
+import AddUserModal from "../AddUserModal"
+import { Search, UserPlus } from "lucide-react"
+import "../styles/UserManagement.css"
+import axios from "axios"
+import { useApp } from "../../context/AppContext" // Corrected import for useApp
 
-const API_URL = "http://localhost:3000/api/admin/users"; // Ensure this matches your backend route
+// Ensure this matches the port your Node.js backend is running on
+const API_URL = process.env.REACT_APP_ADMIN_USERS_API_URL || "http://localhost:5000/api/admin/users"
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState("All Users");
+  const { state, actions } = useApp()
+  const currentUser = state.user
 
-  useEffect(() => {
-    const token = localStorage.getItem("authToken");
+  const [users, setUsers] = useState([])
+  const [filteredUsers, setFilteredUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [selectedFilter, setSelectedFilter] = useState("All Users")
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    const token = localStorage.getItem("authToken")
     if (!token) {
-      console.warn("No token found. Redirecting to login...");
-      return;
+      console.warn("No auth token found")
+      setUsers([])
+      setLoading(false)
+      return
     }
-
-    axios
-      .get(API_URL, {
+    try {
+      const response = await axios.get(API_URL, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      .then((res) => {
-        setUsers(res.data.users || []);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching users:", error);
-        setLoading(false);
-      });
-  }, []);
+      console.log("Backend response for fetchUsers:", response.data.users) // Keep this log
+      setUsers(response.data.users || [])
+    } catch (error) {
+      console.error("Error fetching users:", error)
+      actions.setError(`Failed to fetch users: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [actions])
 
   useEffect(() => {
-    if (Array.isArray(users)) filterUsers();
-  }, [searchTerm, selectedFilter, users]);
-  const handleDelete = (userId) => {
-    // Remove user by ID
-    setUsers((prev) => prev.filter((user) => user.id !== userId));
-  };
+    fetchUsers()
+  }, [fetchUsers]) // Removed currentUser from dependency array to prevent re-fetching on every currentUser change
 
-  const filterUsers = () => {
-    let filtered = [...users];
-
-    if (searchTerm) {
-      filtered = filtered.filter((user) =>
-        [user.name, user.email, user.role, user.department]
-          .some((field) => field && field.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    if (selectedFilter === "Active") {
-      filtered = filtered.filter((user) => user.status === "Active");
-    } else if (selectedFilter === "Inactive") {
-      filtered = filtered.filter((user) => user.status === "Inactive");
-    }
-
-    setFilteredUsers(filtered);
-  };
-
-  const handleSearch = (e) => setSearchTerm(e.target.value);
-  const handleFilterChange = (e) => setSelectedFilter(e.target.value);
-  const handleAddUser = () => setShowAddModal(true);
-  const handleCloseModal = () => setShowAddModal(false);
-
-const handleSaveUser = async (newUser) => {
-  try {
-    const token = localStorage.getItem("authToken");
-
-    const response = await axios.post(API_URL, {
-      ...newUser,
-      status: "Active",
-      lastActive: "Just now",
-    }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const addedUser = {
-      ...response.data.user,
-      role: newUser.role || "N/A",
-      department: newUser.department || "N/A",
-      status: "Active",
-      lastActive: "Just now",
-    };
-
-    setUsers((prev) => [...prev, addedUser]);
-  } catch (error) {
-    console.error("Failed to save user:", error);
-  } finally {
-    handleCloseModal();
-  }
-};
-
-
-
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        const token = localStorage.getItem("authToken");
-        await axios.delete(`${API_URL}/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUsers(users.filter((user) => user.id !== userId));
-      } catch (error) {
-        console.error("Failed to delete user:", error);
+  useEffect(() => {
+    const combinedUsers = [...users]
+    if (currentUser) {
+      const idx = combinedUsers.findIndex((u) => u.id === currentUser.id)
+      if (idx !== -1) {
+        const user = combinedUsers.splice(idx, 1)[0]
+        combinedUsers.unshift({
+          ...user,
+          isCurrentUser: true,
+          status: currentUser.status || "Active",
+          lastActive: currentUser.lastActive || new Date().toISOString(),
+          department: currentUser.department || "General",
+        })
+      } else {
+        // Add current user if not already in the list (e.g., first login)
+        combinedUsers.unshift({
+          ...currentUser,
+          isCurrentUser: true,
+          status: currentUser.status || "Active",
+          lastActive: currentUser.lastActive || new Date().toISOString(),
+          department: currentUser.department || "General",
+        })
       }
     }
-  };
 
-const handleToggleStatus = async (userId) => {
-  if (!userId) {
-    console.error("Cannot toggle status: userId is undefined.");
-    return;
+    let filtered = combinedUsers
+    if (searchTerm) {
+      filtered = filtered.filter((u) =>
+        [u.name, u.email, u.role, u.department, u.status].some((field) =>
+          field?.toLowerCase().includes(searchTerm.toLowerCase()),
+        ),
+      )
+    }
+    if (selectedFilter === "Active") filtered = filtered.filter((u) => u.status === "Active")
+    if (selectedFilter === "Inactive") filtered = filtered.filter((u) => u.status === "Inactive")
+    setFilteredUsers(filtered)
+  }, [searchTerm, selectedFilter, users, currentUser])
+
+  const handleAddUser = () => setShowAddModal(true)
+  const handleCloseModal = () => setShowAddModal(false)
+
+  const handleSaveUser = async (newUser) => {
+    const token = localStorage.getItem("authToken")
+    try {
+      const response = await axios.post(
+        API_URL,
+        {
+          ...newUser,
+          status: "Active", // Ensure status is sent
+          lastActive: new Date().toISOString(), // Ensure lastActive is sent
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      console.log("User added successfully:", response.data.user)
+      fetchUsers() // Re-fetch users to update the table
+    } catch (error) {
+      console.error("Failed to save user:", error)
+      alert(`Failed to add user: ${error.message}`)
+    } finally {
+      handleCloseModal()
+    }
   }
 
-  try {
-    const user = users.find((u) => u.id === userId);
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return
+    const token = localStorage.getItem("authToken")
+    try {
+      await axios.delete(`${API_URL}/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      console.log(`User ${userId} deleted successfully.`)
+      fetchUsers() // Re-fetch users to update the table
+    } catch (error) {
+      alert(`Failed to delete user: ${error.message}`)
+      console.error("Delete error:", error)
+    }
+  }
+
+  const handleToggleStatus = async (userId) => {
+    const user = users.find((u) => u.id === userId)
     if (!user) {
-      console.error("User not found with ID:", userId);
-      return;
+      console.warn("User not found for status toggle.")
+      return
     }
 
-    const updatedStatus = user.status === "Active" ? "Inactive" : "Active";
-    const token = localStorage.getItem("authToken");
+    const token = localStorage.getItem("authToken")
+    // Determine new status based on current status
+    const newStatus = user.status === "Active" ? "Inactive" : "Active"
+    console.log(`Toggling user ${userId} status from ${user.status} to ${newStatus}`)
 
-    const response = await axios.put(`${API_URL}/${userId}`, {
-      ...user,
-      status: updatedStatus,
-    }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const updatedUser = response.data.user || response.data;
-    setUsers(users.map((u) => (u.id === userId ? updatedUser : u)));
-  } catch (error) {
-    console.error("Failed to update status:", error);
+    try {
+      const res = await axios.put(
+        `${API_URL}/${userId}`,
+        {
+          status: newStatus, // ✅ Corrected: Use 'status' field
+          lastActive: new Date().toISOString(), // ✅ Corrected: Use 'lastActive' field
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      console.log("User status toggled successfully:", res.data.user)
+      fetchUsers() // Re-fetch users to update the table
+    } catch (error) {
+      console.error("Error toggling status:", error)
+      alert(`Failed to toggle user status: ${error.message}`)
+    }
   }
-};
-
 
   return (
     <div className="user-management">
@@ -158,49 +173,40 @@ const handleToggleStatus = async (userId) => {
 
       <div className="user-management-container">
         <div className="user-management-header">
-          <h2>Manage user access and permissions</h2>
+          <h2>Manage All Users</h2>
           <button className="btn btn-add" onClick={handleAddUser}>
-            <UserPlus size={16} />
-            <span>Add User</span>
+            <UserPlus size={16} /> <span>Add User</span>
           </button>
         </div>
 
-        <div className="user-management-content">
-          <div className="user-management-filters">
-            <div className="search-bar">
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-            </div>
-            <div className="filter-dropdown">
-              <select value={selectedFilter} onChange={handleFilterChange}>
-                <option value="All Users">All Users</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
+        <div className="user-management-filters">
+          <div className="search-bar">
+            <Search size={18} />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search users..." />
           </div>
-
-          {loading ? (
-            <div className="loading">Loading user data...</div>
-          ) : (
-            <UserTable
-  users={users}
-  onDelete={handleDelete}
-  onToggleStatus={handleToggleStatus}
-/>
-
-          )}
+          <select value={selectedFilter} onChange={(e) => setSelectedFilter(e.target.value)}>
+            <option value="All Users">All Users</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
+
+        {loading ? (
+          <div>Loading users...</div>
+        ) : (
+          <UserTable
+            users={filteredUsers}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            currentUserRole={currentUser?.role}
+            currentUserId={currentUser?.id}
+          />
+        )}
+
+        {showAddModal && <AddUserModal onClose={handleCloseModal} onSave={handleSaveUser} />}
       </div>
-
-      {showAddModal && <AddUserModal onClose={handleCloseModal} onSave={handleSaveUser} />}
     </div>
-  );
-};
+  )
+}
 
-export default UserManagement;
+export default UserManagement

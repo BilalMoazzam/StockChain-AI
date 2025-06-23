@@ -10,6 +10,8 @@ import {
   Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { addNotification } from "../../utils/notificationService";
+
 
 export function OrderDashboard({
   orders = [],
@@ -26,41 +28,133 @@ export function OrderDashboard({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-
   const [selectedProducts, setSelectedProducts] = useState(() => {
     const stored = localStorage.getItem("selectedProducts");
     return stored ? JSON.parse(stored) : [];
   });
 
   const navigate = useNavigate();
-
+  // ✅ FUNCTION: Create Order
   const handleCreateOrder = () => {
-    navigate("/inventory");
+    navigate("/productCard");
   };
+
+  // ✅ FUNCTION: Buy Now
+  const handleBuyNow = (product) => {
+    navigate("/blockchain-transaction", { state: { product } });
+  };
+
+  // ✅ STATS derived from orders and selectedProducts
+  const draftOrderTotal = selectedProducts.reduce(
+    (sum, p) => sum + (p.totalPrice || p.price * p.quantity || 0),
+    0
+  );
+
+  const draftOrder = selectedProducts.length
+    ? {
+        status: "Draft",
+        total: draftOrderTotal,
+      }
+    : null;
+
+  const totalOrders = orders.length + (draftOrder ? 1 : 0);
+  const pendingOrders =
+    orders.filter((o) => o.status === "Pending").length +
+    (draftOrder ? 1 : 0);
+
+  const processingOrders = orders.filter(
+    (o) => o.status === "Processing"
+  ).length;
+
+  const deliveredOrders = orders.filter((o) => o.status === "Delivered").length;
+  const cancelledOrders = orders.filter((o) => o.status === "Cancelled").length;
+
+  const totalRevenue =
+    orders
+      .filter((o) => o.status !== "Cancelled")
+      .reduce((sum, o) => sum + o.total, 0) + draftOrderTotal;
+
+  const totalQuantity = selectedProducts.reduce(
+    (sum, p) => sum + (p.quantity || 0),
+    0
+  );
+
+  // ✅ FILTERED Orders
+  const filteredOrders = orders.filter((o) => {
+    const matchesSearch =
+      o.orderNumber?.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      o.customerName?.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      o.customerEmail?.toLowerCase().includes(searchTerm.trim().toLowerCase());
+
+    const matchesStatus = !statusFilter || o.status === statusFilter;
+    const matchesDate =
+      !dateFilter || new Date(o.orderDate) >= new Date(dateFilter);
+
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   useEffect(() => {
     localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
   }, [selectedProducts]);
 
   useEffect(() => {
-    const localProductList = localStorage.getItem(
-      "selectedProductFromInventory"
-    );
+    const localProductList = localStorage.getItem("selectedProductFromInventory");
     if (!localProductList) return;
 
     const parsedList = JSON.parse(localProductList).filter(
       (p) => p && typeof p.price === "number"
     );
-    const updated = [...selectedProducts, ...parsedList];
 
-    setSelectedProducts(updated);
-    localStorage.setItem("selectedProducts", JSON.stringify(updated));
+    const merged = [...selectedProducts];
+
+    parsedList.forEach((newProduct) => {
+      const key = newProduct.id || newProduct.sku;
+      const index = merged.findIndex((p) => (p.id || p.sku) === key);
+
+      if (index !== -1) {
+        merged[index].quantity += newProduct.quantity || 1;
+        merged[index].totalPrice +=
+          newProduct.totalPrice ||
+          newProduct.price * (newProduct.quantity || 1);
+      } else {
+        merged.push({
+          ...newProduct,
+          quantity: newProduct.quantity || 1,
+          totalPrice:
+            newProduct.totalPrice ||
+            newProduct.price * (newProduct.quantity || 1),
+        });
+      }
+    });
+
+    setSelectedProducts(merged);
+    localStorage.setItem("selectedProducts", JSON.stringify(merged));
     localStorage.removeItem("selectedProductFromInventory");
+
+    const notifiedOrders =
+      JSON.parse(localStorage.getItem("notifiedOrderItems")) || {};
+    const updatedNotified = { ...notifiedOrders };
+
+    parsedList.forEach((product) => {
+      const key = product.id || product.sku;
+      if (!notifiedOrders[key]) {
+        addNotification({
+          type: "order",
+          title: "New Order Received",
+          description: `An order for "${product.name}" (ID: ${key}) was received from inventory.`,
+          priority: "normal",
+          icon: "shopping-cart",
+          link: "/order-management",
+        });
+        updatedNotified[key] = true;
+      }
+    });
+
+    localStorage.setItem("notifiedOrderItems", JSON.stringify(updatedNotified));
   }, []);
 
   useEffect(() => {
     if (!selectedProduct) return;
-
     const alreadyExists = selectedProducts.some(
       (p) => p.sku === selectedProduct.sku
     );
@@ -76,110 +170,44 @@ export function OrderDashboard({
   }, [selectedProduct]);
 
   const handleClearSelected = () => {
+    const inventoryData = JSON.parse(localStorage.getItem("persistedInventory")) || [];
+    const updatedInventory = [...inventoryData];
+
+    selectedProducts.forEach((product) => {
+      const key = product.id || product.sku;
+      const index = updatedInventory.findIndex((item) => (item.id || item.sku) === key);
+      if (index !== -1) {
+        updatedInventory[index].quantity += product.quantity || 0;
+      }
+    });
+
+    localStorage.setItem("persistedInventory", JSON.stringify(updatedInventory));
     setSelectedProducts([]);
     localStorage.removeItem("selectedProducts");
   };
 
-  const draftOrderTotal = selectedProducts.reduce(
-    (sum, p) => sum + (p.totalPrice || p.price * p.quantity || 0),
-    0
-  );
-  const draftOrder = selectedProducts.length
-    ? {
-        status: "Draft",
-        total: draftOrderTotal,
-      }
-    : null;
-  const totalOrders = orders.length + selectedProducts.length;
-  const pendingOrders =
-    orders.filter((o) => o.status === "Pending").length +
-    selectedProducts.length;
-
-  const processingOrders = orders.filter(
-    (o) => o.status === "Processing"
-  ).length;
-
-  const shippedOrders = orders.filter((o) => o.status === "Shipped").length;
-  const deliveredOrders = orders.filter((o) => o.status === "Delivered").length;
-  const cancelledOrders = orders.filter((o) => o.status === "Cancelled").length;
-
-  const totalRevenue =
-    orders
-      .filter((o) => o.status !== "Cancelled")
-      .reduce((sum, o) => sum + o.total, 0) + draftOrderTotal;
-  const totalQuantity = selectedProducts.reduce(
-    (sum, p) => sum + (p.quantity || 0),
-    0
-  );
-
-  const trimmedSearchTerm = searchTerm.trim().toLowerCase();
-
-  const filteredOrders = orders.filter((o) => {
-    const trimmedSearchTerm = searchTerm.trim().toLowerCase();
-
-    const matchesSearch =
-      o.orderNumber?.toLowerCase().includes(trimmedSearchTerm) ||
-      o.customerName?.toLowerCase().includes(trimmedSearchTerm) ||
-      o.customerEmail?.toLowerCase().includes(trimmedSearchTerm);
-
-    const matchesStatus = !statusFilter || o.status === statusFilter;
-
-    const matchesDate =
-      !dateFilter || new Date(o.orderDate) >= new Date(dateFilter);
-
-    return matchesSearch && matchesStatus && matchesDate;
-  });
-
   const handleRemoveFromOrder = (productToRemove) => {
-  const remaining = selectedProducts.filter(
-    (p) => (p.id || p.sku) !== (productToRemove.id || productToRemove.sku)
-  );
-  const inventoryData =
-    JSON.parse(localStorage.getItem("persistedInventory")) || [];
-  const restoredInventory = inventoryData.map((item) => {
-    if (item.id === productToRemove.id) {
-      return {
-        ...item,
-        quantity: item.quantity + (productToRemove.quantity || 0),
-      };
-    }
-    return item;
-  });
-
-  localStorage.setItem("selectedProducts", JSON.stringify(remaining));
-  localStorage.setItem("persistedInventory", JSON.stringify(restoredInventory));
-
-  setSelectedProducts(remaining);
-  console.log("✅ Inventory fully restored for:", productToRemove.name);
-};
-
-  const handleAddToOrder = (product) => {
-    const alreadyExists = selectedProducts.some((p) => p.sku === product.sku);
-    if (alreadyExists) {
-      console.log("⚠️ Product already exists in selected list:", product.name);
-      return;
-    }
-
-    const updated = [...selectedProducts, product];
-    setSelectedProducts(updated);
-    localStorage.setItem("selectedProducts", JSON.stringify(updated));
-    console.log("🛒 Product manually added via button:", product);
-  };
-  const handleBuyNow = (product) => {
-    navigate("/blockchain-transaction", { state: { product } });
-  };
-  const mergedSelectedProducts = Object.values(
-    selectedProducts.reduce((acc, product) => {
-      const key = product.id || product.sku;
-      if (!acc[key]) {
-        acc[key] = { ...product };
-      } else {
-        acc[key].quantity += product.quantity;
-        acc[key].totalPrice += product.totalPrice;
+    const remaining = selectedProducts.filter(
+      (p) => (p.id || p.sku) !== (productToRemove.id || productToRemove.sku)
+    );
+    const inventoryData =
+      JSON.parse(localStorage.getItem("persistedInventory")) || [];
+    const restoredInventory = inventoryData.map((item) => {
+      if ((item.id || item.sku) === (productToRemove.id || productToRemove.sku)) {
+        return {
+          ...item,
+          quantity: item.quantity + (productToRemove.quantity || 0),
+        };
       }
-      return acc;
-    }, {})
-  );
+      return item;
+    });
+
+    localStorage.setItem("selectedProducts", JSON.stringify(remaining));
+    localStorage.setItem("persistedInventory", JSON.stringify(restoredInventory));
+
+    setSelectedProducts(remaining);
+    console.log("✅ Inventory fully restored for:", productToRemove.name);
+  };
 
   return (
     <div className="order-dashboard">

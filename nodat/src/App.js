@@ -27,6 +27,12 @@ import Signup from "./components/pages/Signup";
 import ForgotPassword from "./components/pages/ForgotPassword";
 import ResetPassword from "./components/pages/ResetPassword";
 import Introduction from "./components/pages/Introduction";
+import ProductCardPage from "./components/pages/ProductCardPage";
+// import ProductManagement from "./components/pages/product-management";
+// import ProductShowcase from "./components/pages/products";
+// import CartPage from "./components/pages/cart";
+
+
 // import { ProductDetails } from "./components/inventory/product-details";
 // import { ProductForm } from "./components/inventory/product-form";
 // import { ProductList } from "./components/inventory/product-list";
@@ -89,6 +95,11 @@ function App() {
             {/* <Route path="/product-list" element={<ProductList />} /> */}
             <Route path="/orders" element={<OrderManagement />} />
             <Route path="/supply-chain" element={<SupplyChainOverview />} />
+            <Route path="/productCard" element={<ProductCardPage />} />
+            {/* <Route path="/product-management" element={<ProductManagement />} /> */}
+            {/* <Route path="/products" element={<ProductShowcase />} /> */}
+            {/* <Route path="/cart" element={<CartPage />} /> */}
+
             <Route path="/analytics" element={<AnalyticsReport />} />
             <Route path="/users" element={<UserManagement />} />
             {/* <Route path="/blockchain" element={<BlockchainTransaction />} /> */}

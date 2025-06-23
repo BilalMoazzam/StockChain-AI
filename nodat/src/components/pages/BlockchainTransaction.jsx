@@ -1,57 +1,64 @@
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getContract } from "../../lib/blockchain";
-import { ethers } from "ethers";
 import "../styles/BlockchainTransaction.css";
+import { addNotification } from "../../utils/notificationService";
 
 export default function BlockchainTransactionPage() {
   const { state } = useLocation();
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isPaying, setIsPaying] = useState(false);
+  const [isPaying, setIsPaying] = useState({});
   const [paymentStatus, setPaymentStatus] = useState("");
-  const [statusLog, setStatusLog] = useState([]);
+  // const [statusLog, setStatusLog] = useState([]);
 
-  const BLOCKCHAIN_KEY = 'blockchainSelectedProducts';
+  const BLOCKCHAIN_KEY = "blockchainSelectedProducts";
+  const STATUS_LOG_KEY = "blockchainPaymentStatusLog";
 
-useEffect(() => {
-  const existing = JSON.parse(localStorage.getItem(BLOCKCHAIN_KEY)) || [];
+  const [statusLog, setStatusLog] = useState(() => {
+    const storedLog = localStorage.getItem(STATUS_LOG_KEY);
+    return storedLog ? JSON.parse(storedLog) : [];
+  });
+  useEffect(() => {
+    localStorage.setItem(STATUS_LOG_KEY, JSON.stringify(statusLog));
+  }, [statusLog]);
 
-  if (state?.product) {
-    const isDuplicate = existing.some(p => p.id === state.product.id);
-    if (!isDuplicate) {
-      const updated = [...existing, state.product];
-      localStorage.setItem(BLOCKCHAIN_KEY, JSON.stringify(updated));
-      setProducts(updated);
+  useEffect(() => {
+    const existing = JSON.parse(localStorage.getItem(BLOCKCHAIN_KEY)) || [];
+
+    if (state?.product) {
+      const isDuplicate = existing.some((p) => p.id === state.product.id);
+      if (!isDuplicate) {
+        const updated = [...existing, state.product];
+        localStorage.setItem(BLOCKCHAIN_KEY, JSON.stringify(updated));
+        setProducts(updated);
+      } else {
+        setProducts(existing);
+      }
     } else {
       setProducts(existing);
     }
-  } else {
-    setProducts(existing);
-  }
-}, [state?.product?.id]);
+  }, [state?.product?.id]);
 
-const removeProduct = (id) => {
-  const existing = JSON.parse(localStorage.getItem(BLOCKCHAIN_KEY)) || [];
-  const indexToRemove = existing.findIndex(p => p.id === id);
-  const updated = [...existing.slice(0, indexToRemove), ...existing.slice(indexToRemove + 1)];
-  localStorage.setItem(BLOCKCHAIN_KEY, JSON.stringify(updated));
-  setProducts(updated);
-};
-
+  const removeProduct = (id) => {
+    const existing = JSON.parse(localStorage.getItem(BLOCKCHAIN_KEY)) || [];
+    const updated = existing.filter((p) => p.id !== id);
+    localStorage.setItem(BLOCKCHAIN_KEY, JSON.stringify(updated));
+    setProducts(updated);
+  };
 
   const loadTransactions = async () => {
     try {
       setLoading(true);
-      const contract = await getContract();
+      const contract = await getContract(false); // read-only
       const count = await contract.getTransactionCount();
       const txCount = count.toNumber ? count.toNumber() : parseInt(count);
 
       const allTx = [];
       for (let i = 0; i < txCount; i++) {
         const tx = await contract.getTransaction(i);
-        const structured = {
+        allTx.push({
           txId: tx.txId,
           from: tx.fromEntity,
           to: tx.toEntity,
@@ -60,8 +67,7 @@ const removeProduct = (id) => {
           quantity: tx.quantity.toString(),
           status: tx.status,
           timestamp: new Date(tx.timestamp.toNumber() * 1000).toLocaleString(),
-        };
-        allTx.push(structured);
+        });
       }
 
       setTransactions(allTx.reverse());
@@ -76,27 +82,85 @@ const removeProduct = (id) => {
     loadTransactions();
   }, []);
 
-  const handlePayment = async () => {
-    try {
-      if (!window.ethereum) {
-        alert("MetaMask not detected.");
-        return;
-      }
+  const ensureWalletConnected = async () => {
+    if (!window.ethereum) {
+      throw new Error("MetaMask not detected.");
+    }
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+  };
 
-      setIsPaying(true);
+  const handleSinglePayment = async (product) => {
+    if (!product) return;
+
+    try {
+      setIsPaying((prev) => ({ ...prev, [product.id]: true }));
       setPaymentStatus("🔄 Connecting MetaMask...");
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      let accounts = await window.ethereum.request({ method: "eth_accounts" });
+      await ensureWalletConnected();
+      const contract = await getContract(true); // signer-enabled
 
-      if (!accounts || accounts.length === 0) {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-      }
+      const tx = await contract.recordTransaction(
+        "tx-" + Date.now(),
+        "User",
+        "Shop",
+        "Purchase",
+        product?.name || "Unnamed Product",
+        1,
+        "Confirmed"
+      );
 
-      const signer = await provider.getSigner();
-      const contract = await getContract(signer);
+      await tx.wait();
 
-      for (const product of products) {
+      // ✅ Success Notification
+      addNotification({
+        type: "payment",
+        title: "Payment Successful",
+        description: `Transaction for "${product.name}" (ID: ${product.id}) was successfully confirmed.`,
+        priority: "normal",
+        icon: "check",
+        link: "/blockchain",
+      });
+
+      setStatusLog((prev) => [
+        { time: new Date().toLocaleString(), status: "Accepted", product },
+        ...prev,
+      ]);
+
+      setPaymentStatus("✅ Payment confirmed!");
+      await loadTransactions();
+      removeProduct(product.id);
+    } catch (err) {
+      console.error("Payment failed:", err);
+      setPaymentStatus("❌ Payment failed or denied.");
+
+      // ❌ Failure Notification
+      addNotification({
+        type: "payment",
+        title: "Blockchain Transaction Failed",
+        description: `Transaction for "${product.name}" (ID: ${product.id}) was declined.`,
+        priority: "high",
+        icon: "alert",
+        link: "/blockchain",
+      });
+
+      setStatusLog((prev) => [
+        { time: new Date().toLocaleString(), status: "Declined", product },
+        ...prev,
+      ]);
+    } finally {
+      setIsPaying((prev) => ({ ...prev, [product.id]: false }));
+    }
+  };
+
+  const handleBulkPayment = async () => {
+    try {
+      setIsPaying((prev) => ({ ...prev, all: true }));
+      setPaymentStatus("🔄 Connecting MetaMask...");
+
+      await ensureWalletConnected();
+      const contract = await getContract(true);
+
+      const txPromises = products.map(async (product) => {
         const tx = await contract.recordTransaction(
           "tx-" + Date.now(),
           "User",
@@ -106,40 +170,52 @@ const removeProduct = (id) => {
           1,
           "Confirmed"
         );
-
         await tx.wait();
 
+        // ✅ Success Notification per product
+        addNotification({
+          type: "payment",
+          title: "Bulk Payment Successful",
+          description: `Payment for "${product.name}" (ID: ${product.id}) confirmed.`,
+          priority: "normal",
+          icon: "check",
+          link: "/blockchain",
+        });
+
         setStatusLog((prev) => [
-          {
-            time: new Date().toLocaleString(),
-            status: "Accepted",
-            product,
-          },
-          ...prev,
-        ]);
-      }
-
-      setPaymentStatus("✅ All payments confirmed and transactions recorded!");
-      await loadTransactions();
-
-      localStorage.removeItem("selectedProducts");
-      setProducts([]);
-
-    } catch (err) {
-      console.error("Payment failed:", err);
-      setPaymentStatus("❌ Payment failed or denied.");
-      products.forEach((product) => {
-        setStatusLog((prev) => [
-          {
-            time: new Date().toLocaleString(),
-            status: "Declined",
-            product,
-          },
+          { time: new Date().toLocaleString(), status: "Accepted", product },
           ...prev,
         ]);
       });
+
+      await Promise.all(txPromises);
+
+      setPaymentStatus("✅ All payments confirmed!");
+      await loadTransactions();
+      localStorage.removeItem(BLOCKCHAIN_KEY);
+      setProducts([]);
+    } catch (err) {
+      console.error("Bulk payment failed:", err);
+      setPaymentStatus("❌ Payment failed or denied.");
+
+      for (const product of products) {
+        // ❌ Failure Notification per product (optional)
+        addNotification({
+          type: "payment",
+          title: "Bulk Payment Failed",
+          description: `Transaction for "${product.name}" (ID: ${product.id}) was declined.`,
+          priority: "high",
+          icon: "alert",
+          link: "/blockchain",
+        });
+
+        setStatusLog((prev) => [
+          { time: new Date().toLocaleString(), status: "Declined", product },
+          ...prev,
+        ]);
+      }
     } finally {
-      setIsPaying(false);
+      setIsPaying((prev) => ({ ...prev, all: false }));
     }
   };
 
@@ -172,7 +248,19 @@ const removeProduct = (id) => {
                   <td>{product.size || "Standard"}</td>
                   <td>{product.status || "In Stock"}</td>
                   <td>
-                    <button onClick={() => removeProduct(product.id)} className="remove-from-order-btn">Remove</button>
+                    <button
+                      onClick={() => removeProduct(product.id)}
+                      className="remove-from-order-btn"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={() => handleSinglePayment(product)}
+                      disabled={!!isPaying[product.id]}
+                      className="buy-from-order-btn"
+                    >
+                      {isPaying[product.id] ? "Processing..." : "Pay Amount"}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -181,64 +269,28 @@ const removeProduct = (id) => {
 
           <div className="bt-payment-method">
             <h4 className="bt-subheading">💳 Payment Method</h4>
-            <p>Payment via <strong>MetaMask Wallet</strong></p>
-
+            <p>
+              Payment via <strong>MetaMask Wallet</strong>
+            </p>
             <button
-              onClick={handlePayment}
-              disabled={isPaying}
+              onClick={handleBulkPayment}
+              disabled={!!isPaying.all}
               className="bt-pay-btn"
             >
-              {isPaying ? "Processing..." : "Confirm & Pay for All"}
+              {isPaying.all ? "Processing..." : "Confirm & Pay for All"}
             </button>
-
             {paymentStatus && (
-              <p className={`bt-status-message ${paymentStatus.startsWith("✅") ? "success" : "error"}`}>
+              <p
+                className={`bt-status-message ${
+                  paymentStatus.startsWith("✅") ? "success" : "error"
+                }`}
+              >
                 {paymentStatus}
               </p>
             )}
           </div>
         </div>
       )}
-
-      <div className="bt-section">
-        <h3 className="bt-subheading">📜 Blockchain Transaction History</h3>
-        {loading && <p className="bt-loading">Loading transactions...</p>}
-
-        {!loading && transactions.length > 0 && (
-          <div className="bt-table-wrapper">
-            <table className="bt-transaction-table">
-              <thead>
-                <tr>
-                  <th>Tx ID</th>
-                  <th>From</th>
-                  <th>To</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Qty</th>
-                  <th>Status</th>
-                  <th>Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx, idx) => (
-                  <tr key={idx}>
-                    <td>{tx.txId}</td>
-                    <td>{tx.from}</td>
-                    <td>{tx.to}</td>
-                    <td>{tx.type}</td>
-                    <td>{tx.description}</td>
-                    <td>{tx.quantity}</td>
-                    <td className={tx.status === "Confirmed" ? "bt-status-success" : "bt-status-failed"}>
-                      {tx.status}
-                    </td>
-                    <td>{tx.timestamp}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       <div className="bt-section">
         <h3 className="bt-subheading">📦 Payment Status Log</h3>
@@ -257,12 +309,20 @@ const removeProduct = (id) => {
             </thead>
             <tbody>
               {statusLog.length === 0 ? (
-                <tr><td colSpan="7">No payment log available yet.</td></tr>
+                <tr>
+                  <td colSpan="7">No payment log available yet.</td>
+                </tr>
               ) : (
                 statusLog.map((log, index) => (
                   <tr key={index}>
                     <td>{log.time}</td>
-                    <td className={log.status === "Accepted" ? "bt-status-success" : "bt-status-failed"}>
+                    <td
+                      className={
+                        log.status === "Accepted"
+                          ? "bt-status-success"
+                          : "bt-status-failed"
+                      }
+                    >
                       {log.status}
                     </td>
                     <td>{log.product.name}</td>

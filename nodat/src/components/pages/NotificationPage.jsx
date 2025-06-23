@@ -1,212 +1,88 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Header from "../layout/Header"
-import NotificationList from "../NotificationList"
-import { Bell, CheckCircle, AlertTriangle, Info, Truck } from "lucide-react"
-import "../styles/NotificationPage.css"
+import { useState, useEffect } from "react";
+import Header from "../layout/Header";
+import NotificationList from "../NotificationList";
+import {
+  Bell,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  Truck,
+  Package,
+  ShoppingCart,
+} from "lucide-react";
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  deleteNotification,
+} from "../../utils/notificationService";
+import "../styles/NotificationPage.css";
 
 const NotificationPage = () => {
-  const [notifications, setNotifications] = useState([])
-  const [filteredNotifications, setFilteredNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState("all")
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  // Mock data for notifications
-  const mockNotifications = [
-    {
-      id: 1,
-      type: "order",
-      title: "New Order #38278",
-      description: "A new order has been placed worth pending confirmation",
-      timestamp: "2 mins ago",
-      isRead: false,
-      priority: "normal",
-      icon: "shopping-cart",
-      link: "/orders/38278",
-    },
-    {
-      id: 2,
-      type: "alert",
-      title: "Low Stock Alert",
-      description: "Item ID: TShirt-101 is below threshold level",
-      timestamp: "10 mins ago",
-      isRead: false,
-      priority: "high",
-      icon: "alert",
-      link: "/inventory",
-    },
-    {
-      id: 3,
-      type: "system",
-      title: "System Update",
-      description: "System maintenance scheduled tonight at 2 AM",
-      timestamp: "1 hour ago",
-      isRead: true,
-      priority: "normal",
-      icon: "info",
-      link: "/settings",
-    },
-    {
-      id: 4,
-      type: "shipment",
-      title: "Delayed Shipment",
-      description: "Order #34567 shipment has been delayed",
-      timestamp: "3 hours ago",
-      isRead: false,
-      priority: "medium",
-      icon: "truck",
-      link: "/orders/34567",
-    },
-    {
-      id: 5,
-      type: "inventory",
-      title: "Inventory Restocked",
-      description: "50 units of Microchips R7240 added to inventory",
-      timestamp: "5 hours ago",
-      isRead: true,
-      priority: "normal",
-      icon: "package",
-      link: "/inventory",
-    },
-    {
-      id: 6,
-      type: "alert",
-      title: "Security Alert",
-      description: "Unusual login attempt detected from IP 192.168.1.45",
-      timestamp: "1 day ago",
-      isRead: true,
-      priority: "high",
-      icon: "alert",
-      link: "/settings/security",
-    },
-    {
-      id: 7,
-      type: "system",
-      title: "Blockchain Verification",
-      description: "Transaction #TXN72345 has been verified",
-      timestamp: "1 day ago",
-      isRead: true,
-      priority: "normal",
-      icon: "check",
-      link: "/blockchain",
-    },
-    {
-      id: 8,
-      type: "order",
-      title: "Order Fulfilled",
-      description: "Order #38150 has been successfully fulfilled",
-      timestamp: "2 days ago",
-      isRead: true,
-      priority: "normal",
-      icon: "check",
-      link: "/orders/38150",
-    },
-  ]
+  const [notifications, setNotifications] = useState([]);
+  const [filteredNotifications, setFilteredNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setNotifications(mockNotifications)
-      setFilteredNotifications(mockNotifications)
-      setLoading(false)
+    const load = () => {
+      const all = getNotifications();
+      setNotifications(all);
+      setFilteredNotifications(all);
+      setUnreadCount(all.filter((n) => !n.isRead).length);
+      setLoading(false);
+    };
 
-      // Count unread notifications
-      const unread = mockNotifications.filter((notification) => !notification.isRead).length
-      setUnreadCount(unread)
-    }, 1000)
-  }, [])
+    load();
+
+    window.addEventListener("notificationAdded", load);
+    window.addEventListener("notificationUpdated", load);
+    return () => {
+      window.removeEventListener("notificationAdded", load);
+      window.removeEventListener("notificationUpdated", load);
+    };
+  }, []);
 
   useEffect(() => {
-    filterNotifications(activeFilter)
-  }, [activeFilter, notifications])
+    filterNotifications(activeFilter);
+  }, [activeFilter, notifications]);
 
   const filterNotifications = (filter) => {
-    let filtered = [...notifications]
+    let filtered = [...notifications];
+    if (filter === "unread") filtered = filtered.filter((n) => !n.isRead);
+    else if (filter !== "all") filtered = filtered.filter((n) => n.type === filter);
+    setFilteredNotifications(filtered);
+  };
 
-    switch (filter) {
-      case "unread":
-        filtered = filtered.filter((notification) => !notification.isRead)
-        break
-      case "order":
-        filtered = filtered.filter((notification) => notification.type === "order")
-        break
-      case "alert":
-        filtered = filtered.filter((notification) => notification.type === "alert")
-        break
-      case "system":
-        filtered = filtered.filter((notification) => notification.type === "system")
-        break
-      case "shipment":
-        filtered = filtered.filter((notification) => notification.type === "shipment")
-        break
-      case "inventory":
-        filtered = filtered.filter((notification) => notification.type === "inventory")
-        break
-      default:
-        // "all" - no filtering needed
-        break
-    }
+  const handleFilterChange = (filter) => setActiveFilter(filter);
 
-    setFilteredNotifications(filtered)
-  }
+  const markAsRead = (id) => markNotificationAsRead(id);
 
-  const handleFilterChange = (filter) => {
-    setActiveFilter(filter)
-  }
+  const markAllAsRead = () => markAllNotificationsAsRead();
 
-  const markAsRead = (id) => {
-    const updatedNotifications = notifications.map((notification) => {
-      if (notification.id === id && !notification.isRead) {
-        return { ...notification, isRead: true }
-      }
-      return notification
-    })
-
-    setNotifications(updatedNotifications)
-
-    // Update unread count
-    const unread = updatedNotifications.filter((notification) => !notification.isRead).length
-    setUnreadCount(unread)
-  }
-
-  const markAllAsRead = () => {
-    const updatedNotifications = notifications.map((notification) => {
-      return { ...notification, isRead: true }
-    })
-
-    setNotifications(updatedNotifications)
-    setUnreadCount(0)
-  }
-
-  const deleteNotification = (id) => {
-    const updatedNotifications = notifications.filter((notification) => notification.id !== id)
-    setNotifications(updatedNotifications)
-
-    // Update unread count
-    const unread = updatedNotifications.filter((notification) => !notification.isRead).length
-    setUnreadCount(unread)
-  }
+  const handleDelete = (id) => deleteNotification(id);
 
   const getNotificationIcon = (iconType) => {
     switch (iconType) {
       case "shopping-cart":
-        return <Bell size={20} />
+        return <ShoppingCart size={20} />;
       case "alert":
-        return <AlertTriangle size={20} />
+        return <AlertTriangle size={20} />;
       case "info":
-        return <Info size={20} />
+        return <Info size={20} />;
       case "truck":
-        return <Truck size={20} />
+        return <Truck size={20} />;
       case "package":
-        return <Bell size={20} />
+        return <Package size={20} />;
       case "check":
-        return <CheckCircle size={20} />
+        return <CheckCircle size={20} />;
       default:
-        return <Bell size={20} />
+        return <Bell size={20} />;
     }
-  }
+  };
 
   return (
     <div className="notification-page">
@@ -234,51 +110,27 @@ const NotificationPage = () => {
               <h3>Filter</h3>
             </div>
             <div className="filter-options">
-              <button
-                className={`filter-option ${activeFilter === "all" ? "active" : ""}`}
-                onClick={() => handleFilterChange("all")}
-              >
-                All Notifications
-                {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
-              </button>
-              <button
-                className={`filter-option ${activeFilter === "unread" ? "active" : ""}`}
-                onClick={() => handleFilterChange("unread")}
-              >
-                Unread
-                {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
-              </button>
-              <div className="filter-divider"></div>
-              <button
-                className={`filter-option ${activeFilter === "order" ? "active" : ""}`}
-                onClick={() => handleFilterChange("order")}
-              >
-                Orders
-              </button>
-              <button
-                className={`filter-option ${activeFilter === "alert" ? "active" : ""}`}
-                onClick={() => handleFilterChange("alert")}
-              >
-                Alerts
-              </button>
-              <button
-                className={`filter-option ${activeFilter === "system" ? "active" : ""}`}
-                onClick={() => handleFilterChange("system")}
-              >
-                System
-              </button>
-              <button
-                className={`filter-option ${activeFilter === "shipment" ? "active" : ""}`}
-                onClick={() => handleFilterChange("shipment")}
-              >
-                Shipments
-              </button>
-              <button
-                className={`filter-option ${activeFilter === "inventory" ? "active" : ""}`}
-                onClick={() => handleFilterChange("inventory")}
-              >
-                Inventory
-              </button>
+              {[
+                { label: "All Notifications", value: "all" },
+                { label: "Unread", value: "unread" },
+                { label: "Orders", value: "order" },
+                { label: "Alerts", value: "alert" },
+                { label: "System", value: "system" },
+                { label: "Shipments", value: "shipment" },
+                { label: "Inventory", value: "inventory" },
+                { label: "Blockchain", value: "payment" },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  className={`filter-option ${activeFilter === value ? "active" : ""}`}
+                  onClick={() => handleFilterChange(value)}
+                >
+                  {label}
+                  {value === "unread" && unreadCount > 0 && (
+                    <span className="badge">{unreadCount}</span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -301,14 +153,14 @@ const NotificationPage = () => {
                 notifications={filteredNotifications}
                 getIcon={getNotificationIcon}
                 onMarkAsRead={markAsRead}
-                onDelete={deleteNotification}
+                onDelete={handleDelete}
               />
             )}
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default NotificationPage
+export default NotificationPage;

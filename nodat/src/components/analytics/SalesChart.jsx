@@ -1,62 +1,63 @@
-// import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
 const SalesChart = ({ data, dateRange }) => {
-  const getTitle = () => {
-    switch (dateRange) {
-      case "week":
-        return "Sales - Last 7 Days"
-      case "year":
-        return "Sales - Last 12 Months"
-      default:
-        return "Sales - Last 30 Days"
+  const formatYAxis = (tickItem) => {
+    if (tickItem >= 1000000) {
+      return `$${(tickItem / 1000000).toFixed(1)}M`
     }
+    if (tickItem >= 1000) {
+      return `$${(tickItem / 1000).toFixed(0)}k`
+    }
+    return `$${tickItem}`
   }
 
-  const formatYAxis = (value) => {
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}k`
+  const getXAxisLabel = (value, index, dataLength) => {
+    if (dateRange === "week") {
+      return `Day ${index + 1}`
+    } else if (dateRange === "month") {
+      // Show Day 1, Day 5, Day 10, Day 15, Day 20, Day 25, Day 30 for clarity
+      if (index === 0 || (index + 1) % 5 === 0 || index === dataLength - 1) {
+        return `Day ${index + 1}`
+      }
+      return "" // Hide other labels
+    } else if (dateRange === "year") {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      return monthNames[index]
     }
-    return `$${value}`
-  }
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="custom-tooltip">
-          <p className="label">{`${label}`}</p>
-          <p className="value">{`Sales: $${payload[0].value.toLocaleString()}`}</p>
-        </div>
-      )
-    }
-    return null
+    return `Day ${index + 1}`
   }
 
   return (
     <div className="chart-wrapper">
-      <h4 className="chart-title">{getTitle()}</h4>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="name" tick={{ fill: "#333" }} axisLine={{ stroke: "#ccc" }} tickLine={{ stroke: "#ccc" }} />
-          <YAxis
-            tickFormatter={formatYAxis}
-            tick={{ fill: "#333" }}
-            axisLine={{ stroke: "#ccc" }}
-            tickLine={{ stroke: "#ccc" }}
+      <h3 className="chart-title">
+        Sales - {dateRange === "week" ? "Last 7 Days" : dateRange === "month" ? "Last 30 Days" : "Last 12 Months"}
+      </h3>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={data}
+          margin={{
+            top: 5,
+            right: 30,
+            left: 20,
+            bottom: 5,
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+          <XAxis
+            dataKey="name"
+            tickFormatter={(value, index) => getXAxisLabel(value, index, data.length)}
+            tickLine={false}
+            axisLine={false}
+            padding={{ left: 20, right: 20 }}
           />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="value"
-            name="Sales"
-            stroke="#FFC107"
-            strokeWidth={2}
-            dot={{ r: 4 }}
-            activeDot={{ r: 6 }}
+          <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+          <Tooltip
+            formatter={(value) => [`$${value.toLocaleString()}`, "Sales"]}
+            labelFormatter={(label) => `Period: ${label}`}
+            contentStyle={{ backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "4px" }}
+            labelStyle={{ color: "#333" }}
           />
+          <Line type="monotone" dataKey="value" stroke="#ffc107" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -64,4 +65,3 @@ const SalesChart = ({ data, dateRange }) => {
 }
 
 export default SalesChart
-

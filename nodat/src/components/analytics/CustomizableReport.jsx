@@ -2,96 +2,181 @@
 
 import { useState, useEffect } from "react"
 
-const CustomizableReport = () => {
-  const [reportType, setReportType] = useState("inventory")
+const CustomizableReport = ({ allProducts }) => {
+  const [reportType, setReportType] = useState("performanceMetrics")
   const [reportData, setReportData] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [reportHeaders, setReportHeaders] = useState([])
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10) // Number of items per page
 
   useEffect(() => {
-    generateReport(reportType)
-  }, [reportType])
+    generateReport()
+  }, [reportType, allProducts])
 
-  const generateReport = (type) => {
-    setLoading(true)
+  const generateReport = () => {
+    if (!Array.isArray(allProducts) || allProducts.length === 0) {
+      setReportData([])
+      setReportHeaders([])
+      setCurrentPage(1) // Reset page on no data
+      return
+    }
 
-    // Simulate API call to generate report
-    setTimeout(() => {
-      let data = []
+    const shoesProducts = allProducts.filter((item) => item.Category && item.Category.toLowerCase().includes("shoes"))
 
-      switch (type) {
-        case "inventory":
-          data = [
-            { id: 1, item: "Shirts", location: "Warehouse A", quantity: 250, value: "$5000" },
-            { id: 2, item: "Pants", location: "Warehouse A", quantity: 150, value: "$4500" },
-            { id: 3, item: "Shoes", location: "Warehouse B", quantity: 100, value: "$6000" },
-            { id: 4, item: "Hats", location: "Warehouse C", quantity: 75, value: "$1500" },
-            { id: 5, item: "Jackets", location: "Warehouse A", quantity: 50, value: "$3000" },
-          ]
-          break
-        case "sales":
-          data = [
-            { id: 1, product: "Shirts", quantity: 120, revenue: "$2400", profit: "$960" },
-            { id: 2, product: "Pants", quantity: 85, revenue: "$2550", profit: "$1020" },
-            { id: 3, product: "Shoes", quantity: 65, revenue: "$3900", profit: "$1560" },
-            { id: 4, product: "Hats", quantity: 45, revenue: "$900", profit: "$360" },
-            { id: 5, product: "Jackets", quantity: 30, revenue: "$1800", profit: "$720" },
-          ]
-          break
-        case "performance":
-          data = [
-            { id: 1, metric: "Order Fulfillment Rate", value: "98.5%", target: "99%", status: "On Track" },
-            { id: 2, metric: "Average Order Value", value: "$85", target: "$80", status: "Exceeding" },
-            { id: 3, metric: "Return Rate", value: "3.2%", target: "3%", status: "On Track" },
-            { id: 4, metric: "Inventory Turnover", value: "5.8", target: "6", status: "Below Target" },
-            { id: 5, metric: "Customer Satisfaction", value: "4.7/5", target: "4.5/5", status: "Exceeding" },
-          ]
-          break
-        default:
-          data = []
-      }
+    if (shoesProducts.length === 0) {
+      setReportData([])
+      setReportHeaders([])
+      setCurrentPage(1) // Reset page on no data
+      return
+    }
 
-      setReportData(data)
-      setLoading(false)
-    }, 500)
+    let data = []
+    let headers = []
+
+    switch (reportType) {
+      case "performanceMetrics":
+        const reorderCount = shoesProducts.filter((p) => p.ai_prediction === "Reorder").length
+        const monitorCount = shoesProducts.filter((p) => p.ai_prediction === "Monitor").length
+        const enoughCount = shoesProducts.filter((p) => p.ai_prediction === "Enough").length
+        const totalShoesAnalyzed = shoesProducts.length
+
+        const inventoryHealth = totalShoesAnalyzed > 0 ? ((enoughCount / totalShoesAnalyzed) * 100).toFixed(1) : 0
+
+        headers = ["Metric", "Value", "Status"]
+        data = [
+          { Metric: "Total Shoes Analyzed", Value: totalShoesAnalyzed, Status: "N/A" },
+          {
+            Metric: "Reorder Needed",
+            Value: reorderCount,
+            Status: reorderCount > 0 ? "Action Required" : "Good",
+          },
+          { Metric: "Monitor Stock", Value: monitorCount, Status: monitorCount > 0 ? "Watch" : "Good" },
+          { Metric: "Enough Stock", Value: enoughCount, Status: "Good" },
+          {
+            Metric: "Inventory Health (Shoes)",
+            Value: `${inventoryHealth}%`,
+            Status: "Calculated",
+          },
+        ]
+        break
+      case "inventoryReport":
+        headers = ["Product ID", "Product Name", "Quantity", "Stock Status", "AI Prediction", "Value"]
+        data = shoesProducts.map((p) => ({
+          "Product ID": p.ProductID,
+          "Product Name": p.ProductName,
+          Quantity: Number.parseFloat(p.quantity) || 0,
+          "Stock Status": p.stock,
+          "AI Prediction": p.ai_prediction,
+          Value: `$${((Number.parseFloat(p.quantity) || 0) * (Number.parseFloat(p.Price) || 0)).toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+          )}`,
+        }))
+        break
+      case "salesReport":
+        const sortedSales = [...shoesProducts]
+          .sort((a, b) => {
+            const valA = (Number.parseFloat(a.quantity) || 0) * (Number.parseFloat(a.Price) || 0)
+            const valB = (Number.parseFloat(b.quantity) || 0) * (Number.parseFloat(b.Price) || 0)
+            return valB - valA
+          })
+          .slice(0, 10)
+
+        headers = ["Product ID", "Product Name", "Quantity Sold", "Revenue", "Profit"]
+        data = sortedSales.map((p) => ({
+          "Product ID": p.ProductID,
+          "Product Name": p.ProductName,
+          "Quantity Sold": Number.parseFloat(p.quantity) || 0,
+          Revenue: `$${((Number.parseFloat(p.quantity) || 0) * (Number.parseFloat(p.Price) || 0)).toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+          )}`,
+          Profit: `$${((Number.parseFloat(p.quantity) || 0) * (Number.parseFloat(p.Price) || 0) * 0.3).toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+          )}`,
+        }))
+        break
+      default:
+        data = []
+        headers = []
+    }
+
+    setReportData(data)
+    setReportHeaders(headers)
+    setCurrentPage(1) // Reset to first page when report data changes
   }
 
   const handleReportTypeChange = (e) => {
     setReportType(e.target.value)
   }
 
-  const renderReportTable = () => {
-    if (loading) {
-      return <div className="report-loading">Generating report...</div>
+  const formatHeader = (header) => {
+    return header
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .replace("Id", "ID")
+      .trim()
+  }
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = reportData.slice(indexOfFirstItem, indexOfLastItem)
+
+  const totalPages = Math.ceil(reportData.length / itemsPerPage)
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber)
+
+  const renderPageNumbers = () => {
+    const pageNumbers = []
+    const maxPageButtons = 5 // Max number of page buttons to show
+
+    if (totalPages <= maxPageButtons) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i)
+      }
+    } else {
+      let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2))
+      let endPage = Math.min(totalPages, currentPage + Math.floor(maxPageButtons / 2))
+
+      if (endPage - startPage + 1 < maxPageButtons) {
+        if (startPage === 1) {
+          endPage = Math.min(totalPages, startPage + maxPageButtons - 1)
+        } else if (endPage === totalPages) {
+          startPage = Math.max(1, totalPages - maxPageButtons + 1)
+        }
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i)
+      }
+
+      if (startPage > 1) {
+        if (startPage > 2) pageNumbers.unshift("...")
+        pageNumbers.unshift(1)
+      }
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) pageNumbers.push("...")
+        pageNumbers.push(totalPages)
+      }
     }
-
-    if (reportData.length === 0) {
-      return <div className="no-data">No data available</div>
-    }
-
-    // Get column headers based on the first item in the data
-    const columns = Object.keys(reportData[0]).filter((key) => key !== "id")
-
-    return (
-      <div className="report-table-container">
-        <table className="report-table">
-          <thead>
-            <tr>
-              {columns.map((column, index) => (
-                <th key={index}>{column.charAt(0).toUpperCase() + column.slice(1)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {reportData.map((row) => (
-              <tr key={row.id}>
-                {columns.map((column, index) => (
-                  <td key={index}>{row[column]}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    return pageNumbers.map((number, index) =>
+      number === "..." ? (
+        <span key={index} className="pagination-ellipsis">
+          ...
+        </span>
+      ) : (
+        <button
+          key={index}
+          onClick={() => paginate(number)}
+          className={`pagination-button ${number === currentPage ? "active" : ""}`}
+        >
+          {number}
+        </button>
+      ),
     )
   }
 
@@ -99,20 +184,57 @@ const CustomizableReport = () => {
     <div className="customizable-report">
       <div className="report-controls">
         <div className="report-type-selector">
-          <label>Select Report Type:</label>
-          <select value={reportType} onChange={handleReportTypeChange}>
-            <option value="inventory">Inventory Report</option>
-            <option value="sales">Sales Report</option>
-            <option value="performance">Performance Metrics</option>
+          <label htmlFor="report-type">Select Report Type:</label>
+          <select id="report-type" value={reportType} onChange={handleReportTypeChange}>
+            <option value="performanceMetrics">Performance Metrics (Shoes)</option>
+            <option value="inventoryReport">Inventory Report (Shoes)</option>
+            <option value="salesReport">Sales Report (Shoes)</option>
           </select>
         </div>
-        <button className="btn btn-generate">Generate Report</button>
       </div>
 
-      {renderReportTable()}
+      <div className="report-table-container">
+        {currentItems.length > 0 ? (
+          <table className="report-table">
+            <thead>
+              <tr>
+                {reportHeaders.map((header) => (
+                  <th key={header}>{formatHeader(header)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {currentItems.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {reportHeaders.map((header, colIndex) => (
+                    <td key={`${rowIndex}-${colIndex}`}>{row[header]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="no-data">No data available for this report type or category.</div>
+        )}
+      </div>
+
+      {reportData.length > itemsPerPage && ( // Only show pagination if there's more than one page
+        <div className="pagination-controls">
+          <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className="pagination-button">
+            Previous
+          </button>
+          {renderPageNumbers()}
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="pagination-button"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 export default CustomizableReport
-

@@ -621,6 +621,7 @@
 
 
 .buy-from-order-btn {
+  margin-inline-start: 10px;
   padding: 0.25rem 0.75rem;
   background-color: #41e15c; /* red-600 */
   color: white;

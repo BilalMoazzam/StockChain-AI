@@ -13,7 +13,10 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation  } from "react-router-dom";
+import { addNotification } from "../../utils/notificationService";
+import InventoryManagement from "../styles/InventoryManagement.css";
+
 
 export function InventoryDashboard({
   inventory,
@@ -31,9 +34,27 @@ export function InventoryDashboard({
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [orderSuccessMsg, setOrderSuccessMsg] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [lowStockItems, setLowStockItems] = useState(0);
+const [outOfStockItems, setOutOfStockItems] = useState(0);
+const [totalProducts, setTotalProducts] = useState(0);
+
   const LOW_STOCK_THRESHOLD = 9;
 
-  const totalProducts = inventory.length;
+  const getCurrentInventory = () =>
+  JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
+
+
+  // const totalProducts = getCurrentInventory().length;
+  useEffect(() => {
+  const updated = getCurrentInventory();
+
+  setTotalProducts(updated.length);
+  setLowStockItems(updated.filter(item => getItemStatus(item) === "Low Stock").length);
+  setOutOfStockItems(updated.filter(item => getItemStatus(item) === "Out of Stock").length);
+}, [filteredInventory, location.pathname]);
+
+
   const getItemStatus = (item) => {
     const qty = Number(item.quantity);
 
@@ -43,14 +64,14 @@ export function InventoryDashboard({
     return "In Stock";
   };
 
-  const lowStockItems = (
-  JSON.parse(localStorage.getItem("persistedInventory")) || inventory
-).filter((item) => getItemStatus(item) === "Low Stock").length;
+//   const lowStockItems = getCurrentInventory().filter(
+//   (item) => getItemStatus(item) === "Low Stock"
+// ).length;
 
+// const outOfStockItems = getCurrentInventory().filter(
+//   (item) => getItemStatus(item) === "Out of Stock"
+// ).length;
 
-  const outOfStockItems = (
-  JSON.parse(localStorage.getItem("persistedInventory")) || inventory
-).filter((item) => getItemStatus(item) === "Out of Stock").length;
 
 
   const [totalValue, setTotalValue] = useState(0);
@@ -66,36 +87,75 @@ export function InventoryDashboard({
 
     setTotalValue(newTotal);
   }, [filteredInventory]);
-
   useEffect(() => {
-    const saved = localStorage.getItem("persistedInventory");
-    const baseInventory = saved ? JSON.parse(saved) : inventory;
+  const refreshInventory = () => {
+    const updatedInventory = getCurrentInventory();
+    const filtered = updatedInventory
+  .map((item) => ({ ...item, status: getItemStatus(item) }))
+  .filter((item) => {
+    const matchesSearch =
+      (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-    const newFiltered = baseInventory
-      .map((item) => {
-        const dynamicStatus = getItemStatus(item);
-        return {
-          ...item,
-          status: dynamicStatus, // ✅ dynamically update status
-        };
-      })
-      .filter((item) => {
-        const matchesSearch =
-          (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !categoryFilter || item.category === categoryFilter;
+    const matchesStatus = !statusFilter || item.status === statusFilter;
 
-        const matchesCategory =
-          !categoryFilter || item.category === categoryFilter;
-        const matchesStatus = !statusFilter || item.status === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
-        return matchesSearch && matchesCategory && matchesStatus;
-      });
+setFilteredInventory(filtered);
 
-    setFilteredInventory(newFiltered);
-  }, [inventory, searchTerm, categoryFilter, statusFilter]);
+  };
+
+  window.addEventListener("focus", refreshInventory);
+
+  return () => {
+    window.removeEventListener("focus", refreshInventory);
+  };
+}, []);
+
+useEffect(() => {
+  const inventoryData = getCurrentInventory();
+
+  const enriched = inventoryData.map((item) => ({
+    ...item,
+    status: getItemStatus(item),
+  }));
+
+  setFilteredInventory(enriched); // ✅ this triggers the stats counters
+}, [location.pathname]);
+
+
+useEffect(() => {
+  const baseInventory = getCurrentInventory();
+
+  const newFiltered = baseInventory
+    .map((item) => ({
+      ...item,
+      status: getItemStatus(item),
+    }))
+    .filter((item) => {
+      const matchesSearch =
+        (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory =
+        !categoryFilter || item.category === categoryFilter;
+      const matchesStatus = !statusFilter || item.status === statusFilter;
+
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+
+  setFilteredInventory(newFiltered);
+}, [location.pathname, searchTerm, categoryFilter, statusFilter]);
+
+
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -201,9 +261,64 @@ export function InventoryDashboard({
     // ✅ Navigate to orders page
     navigate("/orders");
   };
+  useEffect(() => {
+  const inventoryData = JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
+  const notifiedItems = JSON.parse(localStorage.getItem("notifiedStockItems")) || {};
+
+  const updatedNotifiedItems = { ...notifiedItems };
+
+  inventoryData.forEach((item) => {
+    const key = item.id || item.sku;
+    const prevStatus = notifiedItems[key];
+    const currentQty = item.quantity ?? 0;
+
+    // Case 1: Out of stock
+    if (currentQty === 0 && prevStatus !== "out") {
+      addNotification({
+        type: "inventory",
+        title: "Out of Stock",
+        description: `"${item.name}" is completely out of stock!`,
+        priority: "high",
+        icon: "alert-triangle",
+        link: "/inventory",
+      });
+      updatedNotifiedItems[key] = "out";
+
+    // Case 2: Low stock but not out
+    } else if (currentQty < 5 && currentQty > 0 && prevStatus !== "low") {
+      addNotification({
+        type: "inventory",
+        title: "Low Stock Alert",
+        description: `"${item.name}" stock is low (${currentQty} left).`,
+        priority: "medium",
+        icon: "box",
+        link: "/inventory",
+      });
+      updatedNotifiedItems[key] = "low";
+
+    // Case 3: Restocked (was low/out before)
+    } else if (currentQty >= 5 && (prevStatus === "low" || prevStatus === "out")) {
+      addNotification({
+        type: "inventory",
+        title: "Restocked",
+        description: `"${item.name}" has been restocked (Now: ${currentQty}).`,
+        priority: "info",
+        icon: "check-circle",
+        link: "/inventory",
+      });
+      delete updatedNotifiedItems[key]; // reset notification flag
+    }
+
+    // Case 4: No change (already notified), do nothing
+  });
+
+  localStorage.setItem("notifiedStockItems", JSON.stringify(updatedNotifiedItems));
+}, []);
+
+
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div className="inventory-readonly-overlay" style={{ padding: "24px" }}>
       {/* Stats Cards */}
       <div
         style={{
@@ -842,57 +957,7 @@ export function InventoryDashboard({
             </tbody>
           </table>
 
-          {/* Empty state */}
-          {/* {filteredInventory.length === 0 && (
-            <div
-              style={{
-                padding: "48px 24px",
-                textAlign: "center",
-                color: "#6b7280",
-              }}
-            >
-              <Package
-                size={48}
-                style={{ margin: "0 auto 16px", opacity: 0.3 }}
-              />
-              <p style={{ margin: 0, fontSize: "16px", fontWeight: "500" }}>
-                No items found
-              </p>
-              <p style={{ margin: "4px 0 0 0", fontSize: "14px" }}>
-                {searchTerm || categoryFilter || statusFilter
-                  ? "Try adjusting your search or filters"
-                  : "Get started by adding your first Shalwar Kameez"}
-              </p>
-              {!searchTerm && !categoryFilter && !statusFilter && (
-                <button
-                  onClick={onAddItem}
-                  style={{
-                    marginTop: "16px",
-                    padding: "8px 16px",
-                    backgroundColor: "#3b82f6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontSize: "14px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Add Your First Item
-                </button>
-              )}
-              {orderSuccessMsg && (
-                <p
-                  style={{
-                    marginTop: "8px",
-                    color: "#10b981",
-                    fontWeight: 500,
-                  }}
-                >
-                  {orderSuccessMsg}
-                </p>
-              )}
-            </div>
-          )} */}
+         
         </div>
       </div>
     </div>

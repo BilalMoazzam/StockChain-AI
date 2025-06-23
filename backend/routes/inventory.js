@@ -12,6 +12,7 @@ const {
 const { protect, authorize } = require('../middleware/auth');
 const { validateProduct } = require('../middleware/validation');
 
+
 const router = express.Router();
 
 router.use(protect); // All routes are protected

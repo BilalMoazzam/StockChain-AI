@@ -12,6 +12,8 @@ import {
   HelpCircle,
   Settings,
   LogOut,
+  Boxes,
+  Layers,
 } from "lucide-react";
 import "../styles/Sidebar.css";
 import logoImage from "../../assets/logo-Image.png";
@@ -49,6 +51,45 @@ const Sidebar = ({ onShowLogoutModal }) => {
           <LayoutDashboard size={20} />
           <span>Dashboard</span>
         </NavLink>
+
+        {/* <NavLink
+          to="/product-management"
+          className={({ isActive }) =>
+            isActive ? "nav-link active" : "nav-link"
+          }
+        >
+          <Layers size={20} />
+          <span>Product Management</span>
+        </NavLink> */}
+
+        {/* <NavLink
+          to="/products"
+          className={({ isActive }) =>
+            isActive ? "nav-link active" : "nav-link"
+          }
+        >
+          <Boxes size={20} />
+          <span>Products</span>
+        </NavLink> */}
+        <NavLink
+          to="/productCard"
+          className={({ isActive }) =>
+            isActive ? "nav-link active" : "nav-link"
+          }
+        >
+          <Boxes size={20} />
+          <span>Product Page</span>
+        </NavLink>
+
+        {/* <NavLink
+          to="/cart"
+          className={({ isActive }) =>
+            isActive ? "nav-link active" : "nav-link"
+          }
+        >
+          <ShoppingCart size={20} />
+          <span>Cart</span>
+        </NavLink> */}
 
         <NavLink
           to="/inventory"

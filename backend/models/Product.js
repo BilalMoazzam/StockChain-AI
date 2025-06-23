@@ -44,10 +44,17 @@ const productSchema = new mongoose.Schema({
     type: String,
     enum: ['Running Shoes', 'Basketball Shoes', 'Skateboarding Shoes', 'Tennis Shoes', 'Casual Shoes'],
     required: true
+  },
+
+  // ✅ New Field for Image URL
+  Image: {
+    type: String,
+    required: false // Optional, not all products may have it at the start
   }
+
 }, {
   timestamps: true,
-  strict: false // Allow extra fields during testing if needed
+  strict: false
 });
 
 // ✅ FORCE Mongoose to use the 'product' collection (singular)

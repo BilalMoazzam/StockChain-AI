@@ -22,6 +22,7 @@ router.get("/", async (req, res) => {
       quantity: p.quantity,
       stock: p.stock,
       category: p.Category,
+      Image:p.Image
     }));
 
     res.json(formattedProducts);

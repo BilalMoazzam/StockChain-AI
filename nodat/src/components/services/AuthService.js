@@ -1,3 +1,8 @@
+// This file is no longer directly used by Login.jsx for its login logic.
+// It seems to contain mock data and timeout logic.
+// If your backend is real, you should remove or refactor this file.
+// For now, we'll leave it as is, but note it's not part of the new login flow.
+
 const API_URL = "http://localhost:5000/api/auth"
 
 const AuthService = {
@@ -30,7 +35,7 @@ const AuthService = {
     }
   },
 
-  // Login user
+  // Login user - THIS IS THE MOCKED VERSION, NOT USED BY NEW LOGIN.JSX
   login: (email, password, rememberMe = false) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
