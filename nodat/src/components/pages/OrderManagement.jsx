@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import Header from "../layout/Header";
 import { OrderDashboard } from "../orders/OrderDashboard";
 import { Modal } from "../ui-components";
 import "../styles/OrderManagement.css";
@@ -61,14 +62,22 @@ const OrderManagement = ({
     localStorage.removeItem("selectedProducts");
   };
   const handleBuyNow = (product) => {
-  console.log("Buying product:", product);
-  // Add actual logic: e.g., create order, show toast, navigate, etc.
-};
+    console.log("Buying product:", product);
+    // Add actual logic: e.g., create order, show toast, navigate, etc.
+  };
 
   return (
-    <div className="order-management">
-      <main className="order-main-content">
-        <OrderDashboard
+    <div>
+      <Header
+        title="Order Management"
+        breadcrumbs={[
+          { text: "Dashboard", active: false },
+          { text: "Order Management", active: true },
+        ]}
+      />
+      <div className="order-management">
+        <main className="order-main-content">
+          <OrderDashboard
             orders={orders}
             customers={customers}
             inventory={inventory}
@@ -102,19 +111,20 @@ const OrderManagement = ({
                 )
               );
             }}
-        />
-      </main>
+          />
+        </main>
 
-      {showOrderDetails && selectedOrder && (
-        <Modal
-          isOpen={showOrderDetails}
-          onClose={() => setShowOrderDetails(false)}
-          title="Order Details"
-          size="xlarge"
-        >
-          {/* Optional: Render order details */}
-        </Modal>
-      )}
+        {showOrderDetails && selectedOrder && (
+          <Modal
+            isOpen={showOrderDetails}
+            onClose={() => setShowOrderDetails(false)}
+            title="Order Details"
+            size="xlarge"
+          >
+            {/* Optional: Render order details */}
+          </Modal>
+        )}
+      </div>
     </div>
   );
 };

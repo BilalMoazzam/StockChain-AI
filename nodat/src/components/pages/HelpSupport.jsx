@@ -116,7 +116,7 @@ const HelpSupport = () => {
               </div>
 
               <div className="help-mascot">
-                <p className="mascot-image"/>
+                <p className="mascot-image" />
               </div>
 
               <div className="search-container">
@@ -184,44 +184,10 @@ const HelpSupport = () => {
               <FeedbackForm onFeedbackSubmit={handleFeedbackSubmit} />
               <UserComments comments={userComments} />
             </div>
-            <SupportFooter />
-            <button className="chat-support-btn" onClick={toggleChatSupport}>
-              <MessageCircle size={24} />
-              <span>Live Chat Support</span>
-            </button>
-
-            {showChatSupport && (
-              <div className="chat-support-window">
-                <div className="chat-header">
-                  <h3>Live Support</h3>
-                  <button className="close-chat" onClick={toggleChatSupport}>
-                    ×
-                  </button>
-                </div>
-                <div className="chat-messages">
-                  <div className="message support">
-                    <div className="message-avatar">
-                      <img
-                        src="/placeholder.svg?height=40&width=40"
-                        alt="Support Agent"
-                      />
-                    </div>
-                    <div className="message-content">
-                      <p className="message-sender">Support Agent</p>
-                      <p>Hello! How can I help you today with StockChain AI?</p>
-                      <span className="message-time">Just now</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="chat-input">
-                  <input type="text" placeholder="Type your message here..." />
-                  <button className="send-btn">Send</button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
+      <SupportFooter />
     </div>
   );
 };

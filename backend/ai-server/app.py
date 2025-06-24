@@ -1,104 +1,163 @@
+import os
+import logging
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
-import numpy as np
-import os
+import joblib
 
-app = Flask(__name__)
-CORS(app) # Enable CORS for all routes
+# ——— Logging setup ———
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # ✅ fixed __file__
 
-# Path to your CSV file
-CSV_FILE_PATH = 'final_product_with_images.csv'
+# ——— Model loading ———
+MODEL_PATH = os.getenv(
+    'AI_MODEL_PATH',
+    os.path.join(BASE_DIR, 'models', 'demand_forecast.pkl')
+)
+logging.info(f"Attempting to load model from: {MODEL_PATH}")
+if not os.path.exists(MODEL_PATH):
+    logging.error(f"Model file not found at {MODEL_PATH}; forecasts will return 0.0")
+    model = None
+else:
+    try:
+        model = joblib.load(MODEL_PATH)
+        logging.info("Model loaded successfully")
+    except Exception as e:
+        logging.error(f"Failed to load model: {e}")
+        model = None
 
-# Load the dataset
+# ——— Data loading ———
+CSV_PATH = os.getenv('CSV_PATH', os.path.join(BASE_DIR, 'final_product_with_images.csv'))
+LOW_STOCK_THRESHOLD = int(os.getenv('LOW_STOCK_THRESHOLD', 100))
+
+def load_data():
+    df = pd.read_csv(CSV_PATH)
+    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0).astype(int)
+    df['Price']    = pd.to_numeric(df['Price'],    errors='coerce').fillna(0)
+    return df
+
 try:
-    df = pd.read_csv(CSV_FILE_PATH)
-    # Ensure 'quantity' and 'Price' are numeric, coercing errors to NaN
-    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
-    df['Price'] = pd.to_numeric(df['Price'], errors='coerce').fillna(0)
-    print(f"Successfully loaded {len(df)} records from {CSV_FILE_PATH}")
-except FileNotFoundError:
-    print(f"Error: {CSV_FILE_PATH} not found. Please ensure the CSV is in the same directory as app.py")
-    df = pd.DataFrame() # Create an empty DataFrame to prevent further errors
+    df = load_data()
+    logging.info(f"Loaded {len(df)} rows from {CSV_PATH}")
 except Exception as e:
-    print(f"Error loading CSV: {e}")
+    logging.error(f"Error loading CSV: {e}")
     df = pd.DataFrame()
 
-# Simple AI prediction logic (example)
-def predict_stock_status(row):
-    if row['quantity'] < 50:
-        return "Reorder"
-    elif row['quantity'] < 150:
-        return "Monitor"
-    else:
-        return "Enough"
+def forecast_demand(features: list) -> float:
+    if model:
+        return float(model.predict([features])[0])
+    return 0.0
 
-def get_stock_status(row):
-    if row['quantity'] == 0:
-        return "Out of Stock"
-    elif row['quantity'] < 100: # Example threshold for low stock
-        return "Low Stock"
-    else:
-        return "In Stock"
+# ——— Flask app ———
+def create_app():
+    app = Flask(__name__)  # ✅ fixed __name__
+    CORS(app)
 
-@app.route('/predict-all', methods=['GET'])
-def predict_all():
-    if df.empty:
-        return jsonify({"error": "Data not loaded. Check CSV file."}), 500
+    @app.route('/inventory', methods=['GET'])
+    def get_inventory():
+        items, alerts = [], []
+        for _, row in df.iterrows():
+            qty = row['quantity']
+            status = (
+                'Out of Stock' if qty == 0 else
+                'Low Stock'   if qty < LOW_STOCK_THRESHOLD else
+                'In Stock'
+            )
+            items.append({
+                'ProductID':     row.get('ProductID'),
+                'ProductName':   row.get('ProductName'),
+                'ProductBrand':  row.get('ProductBrand'),
+                'Gender':        row.get('Gender'),
+                'Description':   row.get('Description'),
+                'PrimaryColor':  row.get('PrimaryColor'),
+                'quantity':      qty,
+                'Price':         row.get('Price'),
+                'stock':         status,
+                'Category':      row.get('Category'),
+                'Image':         row.get('Image'),
+            })
+            if status in ('Low Stock', 'Out of Stock'):
+                alerts.append({
+                    'ProductID':   row.get('ProductID'),
+                    'ProductName': row.get('ProductName'),
+                    'stock':       status
+                })
+        return jsonify({'items': items, 'alerts': alerts})
 
-    # Create a copy to add prediction and stock status without modifying original df
-    df_result = df.copy()
+    @app.route('/predict-all', methods=['GET'])
+    def predict_all():
+        result = []
+        for _, row in df.iterrows():
+            qty = row['quantity']
+            status = (
+                'Out of Stock' if qty == 0 else
+                'Low Stock'   if qty < LOW_STOCK_THRESHOLD else
+                'In Stock'
+            )
+            prediction = forecast_demand([row['Price']])
+            ai_label = 'Reorder' if prediction > qty else 'Enough'
 
-    # Apply prediction and stock status
-    df_result['ai_prediction'] = df_result.apply(predict_stock_status, axis=1)
-    df_result['stock'] = df_result.apply(get_stock_status, axis=1)
+            result.append({
+                'ProductID':     row.get('ProductID'),
+                'ProductName':   row.get('ProductName'),
+                'ProductBrand':  row.get('ProductBrand'),
+                'Gender':        row.get('Gender'),
+                'Description':   row.get('Description'),
+                'PrimaryColor':  row.get('PrimaryColor'),
+                'quantity':      qty,
+                'Price':         row.get('Price'),
+                'stock':         status,
+                'Category':      row.get('Category'),
+                'Image':         row.get('Image'),
+                'ai_prediction': ai_label
+            })
 
-    # Select only the columns needed for the frontend, INCLUDING 'Category'
-    # Ensure all columns expected by the frontend are here
-    required_columns = [
-        'ProductID', 'ProductName', 'quantity', 'Price', 'stock', 'ai_prediction', 'Category', 'Image' # ADD 'Category' HERE
-    ]
-    
-    # Filter df_result to only include required columns, handling missing ones gracefully
-    # This ensures that if a column is missing in the CSV, it doesn't crash,
-    # but it will be 'undefined' on the frontend, which we now know to fix.
-    available_columns = [col for col in required_columns if col in df_result.columns]
-    df_result = df_result[available_columns]
+        return jsonify(result)
 
-    # Convert DataFrame to a list of dictionaries (JSON format)
-    return jsonify(df_result.to_dict('records'))
+    @app.route('/forecast', methods=['POST'])
+    def forecast():
+        data = request.get_json(force=True)
+        feats = data.get('features')
+        if not feats:
+            return jsonify({'error': 'features required'}), 400
+        return jsonify({'forecasted_demand': forecast_demand(feats)})
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json(force=True)
-    product_id = data.get('product_id')
+    @app.route('/alerts', methods=['GET'])
+    def get_alerts():
+        alerts = []
+        for _, row in df.iterrows():
+            qty = row['quantity']
+            if qty == 0 or qty < LOW_STOCK_THRESHOLD:
+                alerts.append({
+                    'ProductID':   row.get('ProductID'),
+                    'ProductName': row.get('ProductName'),
+                    'stock':       'Out of Stock' if qty == 0 else 'Low Stock'
+                })
+        return jsonify(alerts)
 
-    if df.empty:
-        return jsonify({"error": "Data not loaded. Check CSV file."}), 500
+    @app.route('/trending', methods=['GET'])
+    def get_trending():
+        df['sales_value'] = df['quantity'] * df['Price']
+        top5 = df.nlargest(5, 'sales_value')
+        trending = [{
 
-    product_data = df[df['ProductID'] == product_id]
+            'ProductID':    r.get('ProductID'),
+            'ProductName':  r.get('ProductName'),
+            'ProductBrand': r.get('ProductBrand'),
+            'Gender':       r.get('Gender'),
+            'Description':  r.get('Description'),
+            'PrimaryColor': r.get('PrimaryColor'),
+            'sales_value':  r['sales_value'],
+            'quantity':     r['quantity'],
+            'Price':        r['Price'],
+            'Category':     r.get('Category'),
+            'Image':        r.get('Image')
+        } for _, r in top5.iterrows()]
+        return jsonify(trending)
 
-    if product_data.empty:
-        return jsonify({"error": "Product not found"}), 404
+    return app
 
-    # Get the first matching product (assuming ProductID is unique)
-    product_row = product_data.iloc[0]
-
-    # Apply prediction and stock status
-    prediction = predict_stock_status(product_row)
-    stock_status = get_stock_status(product_row)
-
-    response_data = {
-        "ProductID": product_row['ProductID'],
-        "ProductName": product_row['ProductName'],
-        "quantity": product_row['quantity'],
-        "Price": product_row['Price'],
-        "stock": stock_status,
-        "ai_prediction": prediction,
-        "Category": product_row['Category'], # Ensure Category is included here too for single product lookup
-        "Image":product_row['Image']
-    }
-    return jsonify(response_data)
-
+# ✅ Proper main block
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app = create_app()
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5001)), debug=True)

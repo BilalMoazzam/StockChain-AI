@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 import "../styles/Header.css";
+import { UserContext } from "../../context/UserContext";
 
 const Header = ({ title, breadcrumbs }) => {
+  const { username } = useContext(UserContext);
+
   return (
     <div className="header">
       <div className="header-left">
@@ -16,7 +19,7 @@ const Header = ({ title, breadcrumbs }) => {
         </div>
       </div>
       <div className="user-profile">
-        <span className="user-name">Bilal Moazzam</span>
+        <span className="user-name">{username || "Guest"}</span>
         <div className="avatar">
           <img src="/bm.jpeg" alt="User" />
         </div>

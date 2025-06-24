@@ -12,7 +12,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { addNotification } from "../../utils/notificationService";
 
-
 export function OrderDashboard({
   orders = [],
   customers = [],
@@ -59,8 +58,7 @@ export function OrderDashboard({
 
   const totalOrders = orders.length + (draftOrder ? 1 : 0);
   const pendingOrders =
-    orders.filter((o) => o.status === "Pending").length +
-    (draftOrder ? 1 : 0);
+    orders.filter((o) => o.status === "Pending").length + (draftOrder ? 1 : 0);
 
   const processingOrders = orders.filter(
     (o) => o.status === "Processing"
@@ -98,7 +96,9 @@ export function OrderDashboard({
   }, [selectedProducts]);
 
   useEffect(() => {
-    const localProductList = localStorage.getItem("selectedProductFromInventory");
+    const localProductList = localStorage.getItem(
+      "selectedProductFromInventory"
+    );
     if (!localProductList) return;
 
     const parsedList = JSON.parse(localProductList).filter(
@@ -170,18 +170,24 @@ export function OrderDashboard({
   }, [selectedProduct]);
 
   const handleClearSelected = () => {
-    const inventoryData = JSON.parse(localStorage.getItem("persistedInventory")) || [];
+    const inventoryData =
+      JSON.parse(localStorage.getItem("persistedInventory")) || [];
     const updatedInventory = [...inventoryData];
 
     selectedProducts.forEach((product) => {
       const key = product.id || product.sku;
-      const index = updatedInventory.findIndex((item) => (item.id || item.sku) === key);
+      const index = updatedInventory.findIndex(
+        (item) => (item.id || item.sku) === key
+      );
       if (index !== -1) {
         updatedInventory[index].quantity += product.quantity || 0;
       }
     });
 
-    localStorage.setItem("persistedInventory", JSON.stringify(updatedInventory));
+    localStorage.setItem(
+      "persistedInventory",
+      JSON.stringify(updatedInventory)
+    );
     setSelectedProducts([]);
     localStorage.removeItem("selectedProducts");
   };
@@ -193,7 +199,9 @@ export function OrderDashboard({
     const inventoryData =
       JSON.parse(localStorage.getItem("persistedInventory")) || [];
     const restoredInventory = inventoryData.map((item) => {
-      if ((item.id || item.sku) === (productToRemove.id || productToRemove.sku)) {
+      if (
+        (item.id || item.sku) === (productToRemove.id || productToRemove.sku)
+      ) {
         return {
           ...item,
           quantity: item.quantity + (productToRemove.quantity || 0),
@@ -203,7 +211,10 @@ export function OrderDashboard({
     });
 
     localStorage.setItem("selectedProducts", JSON.stringify(remaining));
-    localStorage.setItem("persistedInventory", JSON.stringify(restoredInventory));
+    localStorage.setItem(
+      "persistedInventory",
+      JSON.stringify(restoredInventory)
+    );
 
     setSelectedProducts(remaining);
     console.log("✅ Inventory fully restored for:", productToRemove.name);
@@ -211,19 +222,6 @@ export function OrderDashboard({
 
   return (
     <div className="order-dashboard">
-      <div className="dashboard-header">
-        <div className="header-content">
-          <div className="header-text">
-            <h1>Order Management</h1>
-            <p>Track and manage customer orders and shipments</p>
-          </div>
-          <button className="create-order-btn" onClick={handleCreateOrder}>
-            <Plus size={20} />
-            <span>Create New Order</span>
-          </button>
-        </div>
-      </div>
-
       <div className="stats-grid">
         <div className="stat-card total">
           <div className="stat-icon">
@@ -312,6 +310,10 @@ export function OrderDashboard({
               onChange={(e) => setDateFilter(e.target.value)}
               className="filter-date"
             />
+            <button className="create-order-btn" onClick={handleCreateOrder}>
+              <Plus size={20} />
+              <span>Create New Order</span>
+            </button>
           </div>
         </div>
 

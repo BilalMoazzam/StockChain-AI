@@ -201,7 +201,8 @@ export const AppProvider = ({ children }) => {
       dispatch({ type: actionTypes.SET_USER, payload: finalUserData })
       dispatch({ type: actionTypes.SET_LOADING, payload: false })
 
-      return true
+      // return true
+      return finalUserData;
     } catch (error) {
       dispatch({ type: actionTypes.SET_ERROR, payload: error.message })
       throw error

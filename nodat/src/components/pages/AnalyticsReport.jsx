@@ -1,241 +1,177 @@
-"use client"
+// frontend/src/components/AnalyticsReport.jsx
 
-import { useState, useEffect } from "react"
-// import Header from "../layout/Header"
-import MetricsCards from "../analytics/MetricsCards"
-import SalesChart from "../analytics/SalesChart"
-import InventoryChart from "../analytics/InventoryChart"
-import CustomizableReport from "../analytics/CustomizableReport"
-import ExportReports from "../analytics/ExportReports"
-import AIPredictionTable from "../analytics/AIPredictionTable"
-import AIPredictionChart from "../analytics/AIPredictionChart"
-import StockStatusPieChart from "../analytics/StockStatusPieChart" // Keep this import
-import ProductSalesLookup from "../analytics/ProductSalesLookup"
-import { RefreshCw } from "lucide-react"
-import "../styles/AnalyticsReport.css"
+"use client";
+
+import { useState, useEffect } from "react";
+import Header from "../layout/Header";
+import MetricsCards from "../analytics/MetricsCards";
+import SalesChart from "../analytics/SalesChart";
+import InventoryChart from "../analytics/InventoryChart";
+import CustomizableReport from "../analytics/CustomizableReport";
+import ExportReports from "../analytics/ExportReports";
+import AIPredictionTable from "../analytics/AIPredictionTable";
+import AIPredictionChart from "../analytics/AIPredictionChart";
+import StockStatusPieChart from "../analytics/StockStatusPieChart";
+import ProductSalesLookup from "../analytics/ProductSalesLookup";
+import { RefreshCw } from "lucide-react";
+import "../styles/AnalyticsReport.css";
 
 const AnalyticsReport = () => {
   const [metrics, setMetrics] = useState({
     totalSales: 0,
     bestSellingProduct: "",
     inventoryHealth: 0,
-  })
-
-  const [salesData, setSalesData] = useState([])
-  const [inventoryData, setInventoryData] = useState([])
-  const [aiPredictions, setAiPredictions] = useState([]) // All AI predictions from Flask
-  const [aiPredictionChartData, setAiPredictionChartData] = useState([])
-  const [stockStatusChartData, setStockStatusChartData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState("month")
-  const [lastUpdated, setLastUpdated] = useState("")
+  });
+  const [salesData, setSalesData] = useState([]);
+  const [inventoryData, setInventoryData] = useState([]);
+  const [aiPredictions, setAiPredictions] = useState([]);
+  const [aiPredictionChartData, setAiPredictionChartData] = useState([]);
+  const [stockStatusChartData, setStockStatusChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState("month");
+  const [lastUpdated, setLastUpdated] = useState("");
 
   useEffect(() => {
-    fetchAnalyticsData()
-  }, [dateRange])
+    fetchAnalyticsData();
+  }, [dateRange]);
 
   const fetchAnalyticsData = async () => {
-    setLoading(true)
-
+    setLoading(true);
     try {
-      // Fetch AI predictions from Flask backend
-      const aiResponse = await fetch("http://localhost:5001/predict-all")
-      if (!aiResponse.ok) {
-        throw new Error(`HTTP error! status: ${aiResponse.status}`)
-      }
-      const aiData = await aiResponse.json()
-      console.log("Raw data from Flask (aiData):", aiData) // ADD THIS LINE
-      setAiPredictions(aiData) // Store all predictions
+      const res = await fetch("http://localhost:5001/predict-all");
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      console.log("Raw AI data:", data);
+      setAiPredictions(data);
 
-      // --- Calculate Metrics from AI Data ---
-      let calculatedTotalSales = 0
-      let highestValueProduct = { ProductName: "N/A", value: 0 }
-      let inStockCount = 0
-      let lowStockCount = 0
-      let outOfStockCount = 0
-      let enoughPredictionCount = 0
-      let reorderCount = 0
+      // Metrics
+      let totalSales = 0;
+      let best = { name: "N/A", value: 0 };
+      let inStock = 0,
+        lowStock = 0,
+        outStock = 0,
+        enoughCnt = 0,
+        reorderCnt = 0;
 
-      aiData.forEach((item) => {
-        // Ensure quantity and Price are numbers, default to 0 if not
-        const quantity = Number.parseFloat(item.quantity) || 0
-        const price = Number.parseFloat(item.Price) || 0
-        const productValue = quantity * price
+      data.forEach((item) => {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.Price) || 0;
+        const val = qty * price;
+        totalSales += val;
+        if (val > best.value) best = { name: item.ProductName, value: val };
 
-        calculatedTotalSales += productValue
+        if (item.stock === "In Stock") inStock++;
+        else if (item.stock === "Low Stock") lowStock++;
+        else if (item.stock === "Out of Stock") outStock++;
 
-        if (productValue > highestValueProduct.value) {
-          highestValueProduct = { ProductName: item.ProductName, value: productValue }
-        }
+        if (item.ai_prediction === "Enough") enoughCnt++;
+        else if (item.ai_prediction === "Reorder") reorderCnt++;
+      });
 
-        // Count stock statuses
-        if (item.stock === "In Stock") {
-          inStockCount++
-        } else if (item.stock === "Low Stock") {
-          lowStockCount++
-        } else if (item.stock === "Out of Stock") {
-          outOfStockCount++
-        }
-
-        // Count AI predictions for health
-        if (item.ai_prediction === "Enough") {
-          enoughPredictionCount++
-        } else if (item.ai_prediction === "Reorder") {
-          reorderCount++
-        }
-      })
-
-      const totalProducts = aiData.length
-      // Inventory Health: Percentage of products that are 'Enough' or 'In Stock'
-      // Adjusted calculation: (Total Products - Reorder - Out of Stock) / Total Products
-      const calculatedInventoryHealth =
-        totalProducts > 0 ? Math.round(((totalProducts - reorderCount - outOfStockCount) / totalProducts) * 100) : 0
+      const totalProducts = data.length;
+      const inventoryHealth =
+        totalProducts > 0
+          ? Math.round(
+              ((totalProducts - reorderCnt - outStock) / totalProducts) * 100
+            )
+          : 0;
 
       setMetrics({
-        totalSales: calculatedTotalSales,
-        bestSellingProduct: highestValueProduct.ProductName,
-        inventoryHealth: calculatedInventoryHealth,
-      })
+        totalSales,
+        bestSellingProduct: best.name,
+        inventoryHealth,
+      });
 
-      // --- Generate Chart Data based on AI Data (Simulated) ---
-      const mockSalesData = generateSalesData(dateRange, calculatedTotalSales)
-      setSalesData(mockSalesData)
+      // Charts
+      setSalesData(generateSalesData(dateRange, totalSales));
+      setInventoryData(generateInventoryData(dateRange, data));
 
-      const mockInventoryData = generateInventoryData(dateRange, aiData)
-      setInventoryData(mockInventoryData)
+      const predCounts = data.reduce((acc, it) => {
+        const key = it.ai_prediction || "Unknown";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      setAiPredictionChartData([
+        { name: "Enough", count: predCounts["Enough"] || 0 },
+        { name: "Monitor", count: predCounts["Monitor"] || 0 },
+        { name: "Reorder", count: predCounts["Reorder"] || 0 },
+      ]);
 
-      // --- Prepare AI Prediction Chart Data ---
-      const predictionCounts = aiData.reduce((acc, item) => {
-        // Normalize the prediction string to match expected keys (optional, but good for robustness)
-        let predictionKey = item.ai_prediction
-        if (predictionKey) {
-          predictionKey = predictionKey.charAt(0).toUpperCase() + predictionKey.slice(1).toLowerCase()
-          if (!["Enough", "Monitor", "Reorder"].includes(predictionKey)) {
-            predictionKey = "Unknown"
-          }
-        } else {
-          predictionKey = "Unknown"
-        }
+      setStockStatusChartData([
+        { name: "In Stock", count: inStock },
+        { name: "Low Stock", count: lowStock },
+        { name: "Out of Stock", count: outStock },
+      ]);
 
-        acc[predictionKey] = (acc[predictionKey] || 0) + 1
-        return acc
-      }, {})
-
-      const aiChartData = [
-        { name: "Enough", count: predictionCounts["Enough"] || 0 },
-        { name: "Monitor", count: predictionCounts["Monitor"] || 0 },
-        { name: "Reorder", count: predictionCounts["Reorder"] || 0 },
-      ]
-      setAiPredictionChartData(aiChartData)
-
-      // --- Prepare Stock Status Chart Data ---
-      const stockStatusData = [
-        { name: "In Stock", count: inStockCount },
-        { name: "Low Stock", count: lowStockCount },
-        { name: "Out of Stock", count: outOfStockCount },
-      ]
-      setStockStatusChartData(stockStatusData)
-
-      const now = new Date()
-      setLastUpdated(now.toLocaleString())
-    } catch (error) {
-      console.error("Failed to fetch analytics data or AI predictions:", error)
-      setMetrics({ totalSales: 0, bestSellingProduct: "N/A", inventoryHealth: 0 })
-      setSalesData([])
-      setInventoryData([])
-      setAiPredictions([])
-      setAiPredictionChartData([])
-      setStockStatusChartData([])
+      setLastUpdated(new Date().toLocaleString());
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setMetrics({
+        totalSales: 0,
+        bestSellingProduct: "N/A",
+        inventoryHealth: 0,
+      });
+      setSalesData([]);
+      setInventoryData([]);
+      setAiPredictions([]);
+      setAiPredictionChartData([]);
+      setStockStatusChartData([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Generate sales data based on total sales value
-  const generateSalesData = (range, totalSalesValue) => {
-    const data = []
-    let numPoints = 30 // Default for month
-
-    if (range === "week") {
-      numPoints = 7
-    } else if (range === "year") {
-      numPoints = 12 // Months in a year
-    }
-
-    const averageDailySales = totalSalesValue / numPoints
-
-    for (let i = 0; i < numPoints; i++) {
-      const value = averageDailySales * (0.8 + Math.random() * 0.4) // +/- 20% randomness
-      data.push({
-        name: "", // Name will be formatted by XAxis
-        value: Math.round(value),
-      })
-    }
-    return data
-  }
-
-  // Generate inventory data based on current product quantities
+  // Helpers (unchanged)
+  const generateSalesData = (range, total) => {
+    const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
+    const avg = total / pts;
+    return Array.from({ length: pts }, () => ({
+      name: "",
+      value: Math.round(avg * (0.8 + Math.random() * 0.4)),
+    }));
+  };
   const generateInventoryData = (range, products) => {
-    const data = []
-    let numPoints = 30 // Default for month
-    const totalCurrentQuantity = products.reduce((sum, item) => sum + (Number.parseFloat(item.quantity) || 0), 0)
-
-    if (range === "week") {
-      numPoints = 7
-    } else if (range === "year") {
-      numPoints = 12 // Months in a year
-    }
-
-    const averageInventoryLevel = totalCurrentQuantity / numPoints
-
-    for (let i = 0; i < numPoints; i++) {
-      const value = averageInventoryLevel * (0.7 + Math.random() * 0.6) // +/- 30% randomness
-      data.push({
-        name: "", // Name will be formatted by XAxis
-        value: Math.round(value),
-      })
-    }
-    return data
-  }
-
-  const handleDateRangeChange = (e) => {
-    setDateRange(e.target.value)
-  }
-
-  const handleRefresh = () => {
-    fetchAnalyticsData()
-  }
+    const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
+    const totalQty = products.reduce(
+      (s, it) => s + (Number(it.quantity) || 0),
+      0
+    );
+    const avg = totalQty / pts;
+    return Array.from({ length: pts }, () => ({
+      name: "",
+      value: Math.round(avg * (0.7 + Math.random() * 0.6)),
+    }));
+  };
 
   return (
-    <div className="analytics-report">
-      {/* <Header
+    <div>
+      <Header
         title="Analytics and Reports"
         breadcrumbs={[
           { text: "Dashboard", active: false },
           { text: "Analytics and Reports", active: true },
         ]}
-      /> */}
+      />
 
-      <div className="analytics-container">
+      <div className="analytics-report">
         <div className="analytics-header">
-          <div className="header-left">
-            <h2>Analytics and Reports</h2>
-            <p className="last-updated">
-              Last updated: {lastUpdated}
-              <button className="btn-refresh" onClick={handleRefresh}>
-                <RefreshCw size={14} />
-              </button>
-            </p>
-          </div>
-          <div className="header-right">
-            <div className="date-range-selector">
-              <label>Date Range:</label>
-              <select value={dateRange} onChange={handleDateRangeChange}>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-                <option value="year">Last 12 Months</option>
-              </select>
-            </div>
+          {/* <h2>Analytics and Reports</h2> */}
+          <p className="last-updated">
+            Last updated: {lastUpdated}
+            <button onClick={fetchAnalyticsData}>
+              <RefreshCw size={14} />
+            </button>
+          </p>
+          <div className="date-range-selector">
+            <label>Date Range:</label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+            >
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="year">Last 12 Months</option>
+            </select>
           </div>
         </div>
 
@@ -246,65 +182,45 @@ const AnalyticsReport = () => {
             <MetricsCards metrics={metrics} />
 
             <div className="section">
-              <div className="section-header">
-                <h3>Sales & Inventory Trends</h3>
-              </div>
+              <h3>Sales & Inventory Trends</h3>
               <div className="charts-grid">
-                <div className="chart-container">
-                  <SalesChart data={salesData} dateRange={dateRange} />
-                </div>
-                <div className="chart-container">
-                  <InventoryChart data={inventoryData} dateRange={dateRange} />
-                </div>
+                <SalesChart data={salesData} dateRange={dateRange} />
+                <InventoryChart data={inventoryData} dateRange={dateRange} />
               </div>
             </div>
 
             <div className="section">
-              <div className="section-header">
-                <h3>AI Inventory Prediction Overview</h3>
-              </div>
+              <h3>AI Inventory Prediction Overview</h3>
               <div className="charts-grid">
-                <div className="chart-container">
-                  <AIPredictionChart data={aiPredictionChartData} />
-                </div>
-                <div className="chart-container">
-                  <StockStatusPieChart data={stockStatusChartData} /> {/* Reverted to Pie Chart */}
-                </div>
+                <AIPredictionChart data={aiPredictionChartData} />
+                <StockStatusPieChart data={stockStatusChartData} />
               </div>
             </div>
 
             <div className="section">
-              <div className="section-header">
-                <h3>Product Sales Lookup & Top Products</h3>
-              </div>
+              <h3>Product Sales Lookup & Top Products</h3>
               <ProductSalesLookup products={aiPredictions} />
             </div>
 
             <div className="section">
-              <div className="section-header">
-                <h3>Detailed AI Inventory Insights (All Products)</h3>
-              </div>
+              <h3>Detailed AI Inventory Insights (All Products)</h3>
               <AIPredictionTable predictions={aiPredictions} />
             </div>
 
             <div className="section">
-              <div className="section-header">
-                <h3>Customizable Report (Shoes Category)</h3>
-              </div>
+              <h3>Customizable Report (Shoes Category)</h3>
               <CustomizableReport allProducts={aiPredictions} />
             </div>
 
             <div className="section">
-              <div className="section-header">
-                <h3>Export Reports</h3>
-              </div>
+              <h3>Export Reports</h3>
               <ExportReports />
             </div>
           </>
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AnalyticsReport
+export default AnalyticsReport;

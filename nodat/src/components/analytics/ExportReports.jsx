@@ -1,88 +1,110 @@
-"use client"
+// frontend/src/components/analytics/ExportReports.jsx
 
-import { useState } from "react"
-import { Download } from "lucide-react"
+import React, { useState } from "react";
 
-const ExportReports = () => {
-  const [exportFormat, setExportFormat] = useState("pdf")
-  const [exportType, setExportType] = useState("inventory")
-  const [exporting, setExporting] = useState(false)
+const REPORT_OPTIONS = [
+  {
+    label: "Inventory Report",
+    endpoint: "/inventory",
+    extractor: (resp) => resp.items || [],
+  },
+  {
+    label: "AI Prediction Report",
+    endpoint: "/predict-all",
+    extractor: (resp) => resp || [],
+  },
+  {
+    label: "Trending Report",
+    endpoint: "/trending",
+    extractor: (resp) => resp || [],
+  },
+];
 
-  const handleExportFormatChange = (e) => {
-    setExportFormat(e.target.value)
-  }
+const FORMAT_OPTIONS = ["CSV", "PDF"];
 
-  const handleExportTypeChange = (e) => {
-    setExportType(e.target.value)
-  }
+export default function ExportReports({ baseUrl = "http://localhost:5001" }) {
+  const [reportType, setReportType] = useState(REPORT_OPTIONS[0].label);
+  const [format, setFormat] = useState(FORMAT_OPTIONS[0]);
 
-  const handleExport = () => {
-    setExporting(true)
+  const handleExport = async () => {
+    const cfg = REPORT_OPTIONS.find((r) => r.label === reportType);
+    try {
+      const res = await fetch(baseUrl + cfg.endpoint);
+      if (!res.ok) throw new Error(`Fetch failed ${res.status}`);
+      const data = await res.json();
+      const rows = cfg.extractor(data);
+      if (!rows.length) {
+        return alert("No data to export.");
+      }
 
-    // Simulate export process
-    setTimeout(() => {
-      // In a real app, this would trigger a download
-      console.log(`Exporting ${exportType} report as ${exportFormat}`)
+      if (format === "CSV") {
+        const csv = toCSV(rows);
+        download(csv, `${reportType}.csv, "text/csv"`);
+      } else {
+        // A very basic PDF shim
+        const blob = new Blob([JSON.stringify(rows, null, 2)], {
+          type: "application/pdf",
+        });
+        download(blob, `${reportType}.pdf`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error exporting report.");
+    }
+  };
 
-      // Create a mock download
-      const element = document.createElement("a")
-      element.setAttribute("href", "data:text/plain;charset=utf-8,")
-      element.setAttribute("download", `${exportType}_report.${exportFormat}`)
-      element.style.display = "none"
-      document.body.appendChild(element)
-      element.click()
-      document.body.removeChild(element)
+  const toCSV = (arr) => {
+    const headers = Object.keys(arr[0]);
+    const lines = arr.map((o) =>
+      headers.map((h) => JSON.stringify(o[h] ?? "")).join(",")
+    );
+    return [headers.join(","), ...lines].join("\r\n");
+  };
 
-      setExporting(false)
-
-      // Show success message (in a real app, you'd use a toast notification)
-      alert(
-        `${exportType.charAt(0).toUpperCase() + exportType.slice(1)} report has been exported as ${exportFormat.toUpperCase()}`,
-      )
-    }, 1500)
-  }
+  const download = (content, filename, mime) => {
+    const blob =
+      content instanceof Blob ? content : new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="export-reports">
-      <div className="export-options">
-        <div className="export-option">
-          <label>Report Type:</label>
-          <select value={exportType} onChange={handleExportTypeChange}>
-            <option value="inventory">Inventory Report</option>
-            <option value="sales">Sales Report</option>
-            <option value="performance">Performance Report</option>
-            <option value="financial">Financial Report</option>
-          </select>
-        </div>
-
-        <div className="export-option">
-          <label>Format:</label>
-          <select value={exportFormat} onChange={handleExportFormatChange}>
-            <option value="pdf">PDF</option>
-            <option value="csv">CSV</option>
-            <option value="xlsx">Excel</option>
-          </select>
-        </div>
+    <div className="section export-reports">
+      <div className="section-header">
+        <h3>Export Reports</h3>
       </div>
-
-      <div className="export-actions">
-        <button className="btn btn-export" onClick={handleExport} disabled={exporting}>
-          {exporting ? (
-            <>
-              <div className="spinner"></div>
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <Download size={16} />
-              <span>Export Report</span>
-            </>
-          )}
-        </button>
+      <div className="form-row">
+        <label>
+          Report Type:
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value)}
+          >
+            {REPORT_OPTIONS.map((o) => (
+              <option key={o.label} value={o.label}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Format:
+          <select value={format} onChange={(e) => setFormat(e.target.value)}>
+            {FORMAT_OPTIONS.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button onClick={handleExport}>Export Report</button>
       </div>
     </div>
-  )
+  );
 }
-
-export default ExportReports
-

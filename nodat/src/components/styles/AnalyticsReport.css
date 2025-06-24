@@ -1,8 +1,11 @@
 /* General layout for the analytics report page */
 .analytics-report {
-  padding: 0; /* Removed padding here, container will handle it */
-  background-color: #f8f9fa; /* Light background for the page */
-  min-height: calc(100vh - 60px); /* Adjust based on header height */
+  max-width: 1600px;
+  margin: auto;
+  padding: 2rem;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5; 
+  min-height: 100vh;
 }
 
 .analytics-container {
@@ -420,4 +423,168 @@
 
 .customizable-report .report-table tbody tr:hover {
   background-color: #f2f2f2;
+}
+/* ─────────── Customizable Report Styles ─────────── */
+.customizable-report {
+  /* container spacing */
+  margin-top: 20px;
+  padding: 20px;
+}
+.customizable-report label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+.customizable-report select {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.customizable-report .report-output {
+  margin-top: 20px;
+}
+
+/* If you want the table version: */
+.customizable-report .report-table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+.customizable-report .report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  text-align: left;
+}
+.customizable-report .report-table th,
+.customizable-report .report-table td {
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+.customizable-report .report-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+}
+.customizable-report .report-table tbody tr:hover {
+  background-color: #f2f2f2;
+}
+/* Customizable Report */
+.customizable-report { /* container spacing */ }
+.customizable-report .form-row { /* layout for the selects */ }
+.customizable-report .metrics-cards { /* grid for metric cards */ }
+/* etc */
+
+/* Product Lookup */
+.product-lookup-container { /* overall padding */ }
+.lookup-summary-cards { /* grid for lookup cards */ }
+/* --------------------------------------------------
+   Lookup Table (matches and Top 5)
+   -------------------------------------------------- */
+.lookup-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+.lookup-table th,
+.lookup-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #dee2e6;
+  text-align: left;
+}
+
+.lookup-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #343a40;
+  text-transform: uppercase;
+}
+
+.lookup-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* --------------------------------------------------
+   Pagination Controls
+   -------------------------------------------------- */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
+  gap: 12px;
+}
+
+.pagination-controls button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pagination-controls button:disabled {
+  background-color: #cfd8dc;
+  cursor: default;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.pagination-controls span {
+  font-size: 14px;
+  color: #495057;
+}
+
+/* --------------------------------------------------
+   Top Products Section
+   -------------------------------------------------- */
+.top-products {
+  margin-top: 40px;
+}
+
+.top-products h4 {
+  font-size: 18px;
+  color: #343a40;
+  margin-bottom: 12px;
+}
+
+/* ─────────── Export Reports Styles ─────────── */
+.export-reports {
+  margin-top: 20px;
+  padding: 20px;
+}
+.export-reports label {
+  display: inline-block;
+  margin-right: 15px;
+  font-weight: 500;
+}
+.export-reports select {
+  margin-left: 5px;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.export-reports button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  margin-left: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.export-reports button:hover {
+  background-color: #0056b3;
 }

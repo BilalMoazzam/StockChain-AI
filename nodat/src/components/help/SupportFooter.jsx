@@ -22,7 +22,7 @@ const SupportFooter = () => {
   };
 
   return (
-    <footer className="intro-footer">
+    <footer className="help-support-footer">
       <div className="footer-content">
         <div className="footer-links">
           {footerLinks.map((link, index) => (

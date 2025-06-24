@@ -1,147 +1,150 @@
 .bt-container {
-  max-width: 960px;
-  margin: auto;
-  padding: 30px;
-  font-family: Arial, sans-serif;
-}
-
-.bt-heading {
-  font-size: 28px;
-  margin-bottom: 20px;
-}
-
-.bt-product-card {
-  border: 2px solid #ddd;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 30px;
-  background-color: #fafafa;
-}
-
-.bt-product-table td {
-  padding: 6px 10px;
-}
-
-.bt-pay-btn {
-  margin-top: 15px;
-  padding: 10px 18px;
-  font-size: 16px;
-  color: white;
-  background-color: #28a745;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.bt-status-message {
-  margin-top: 10px;
-  font-weight: bold;
-}
-
-.bt-status-message.success {
-  color: green;
-}
-
-.bt-status-message.error {
-  color: red;
-}
-
-.bt-subheading {
-  font-size: 20px;
-  margin-bottom: 10px;
-}
-
-.bt-transaction-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.bt-transaction-table th,
-.bt-transaction-table td {
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-  text-align: left;
-}
-
-.bt-status-success {
-  color: green;
-  font-weight: bold;
-}
-
-.bt-status-failed {
-  color: red;
-  font-weight: bold;
-}
-.bt-container {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: auto;
   padding: 2rem;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5; 
+  min-height: 100vh;
 }
 
 .bt-heading {
-  font-size: 2rem;
+  font-size: 2.5rem; /* Larger heading */
+  font-weight: 700;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+  color: #333;
 }
 
 .bt-subheading {
-  font-size: 1.25rem;
-  margin: 1.5rem 0 1rem;
+  font-size: 1.5rem; 
+  font-weight: 600;
+  margin: 2rem 0 1rem;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 10px; 
 }
 
 .bt-section {
+  padding-inline: 30px;
+  background-color: #fff;
+  border-radius: 12px; /* More rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer, more prominent shadow */
   margin-bottom: 3rem;
+  overflow: hidden; /* Ensures rounded corners apply to content */
+}
+
+.bt-section-header {
+  background-color: #f0f2f5; /* Light grey header background */
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #eee;
 }
 
 .bt-detail-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 2rem;
+  margin-bottom: 0; /* Remove margin as it's inside a section */
 }
 
+.bt-detail-table th,
 .bt-detail-table td {
-  padding: 0.75rem 1.25rem;
-  border: 1px solid #ddd;
-  font-size: 1rem;
+  padding: 1rem 2rem; /* More padding */
+  border-bottom: 1px solid #eee; /* Lighter border */
+  text-align: left;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.bt-detail-table th {
+  background-color: #f9f9f9; /* Light background for headers */
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.bt-detail-table tr:last-child td {
+  border-bottom: none; /* No border on last row */
 }
 
 .bt-detail-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #fcfcfc; /* Very light stripe */
+}
+
+.bt-detail-table tr:hover {
+  background-color: #f0f7ff; /* Subtle hover effect */
 }
 
 .bt-payment-method {
-  padding: 1rem 0;
-  border-top: 2px solid #eee;
+  padding: 2rem;
+  margin-block: 20px;
+  background-color: #e6f7ff; /* Light blue background for payment section */
+  border-top: 1px solid #cceeff;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .bt-payment-method p {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.bt-payment-method strong {
+  color: #0070f3; /* Blue for MetaMask */
 }
 
 .bt-pay-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: #0070f3;
+  padding: 0.8rem 1.8rem;
+  background-color: #0070f3; /* Vercel blue */
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px; /* More rounded */
   font-weight: bold;
   cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 1.1rem;
+}
+
+.bt-pay-btn:hover {
+  background-color: #005bb5;
+  transform: translateY(-1px);
+}
+
+.bt-pay-btn:disabled {
+  background-color: #a0c8f9;
+  cursor: not-allowed;
+}
+
+.bt-status-message {
+  margin-top: 1rem;
+  font-weight: bold;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  width: fit-content; /* Adjust width to content */
 }
 
 .bt-status-message.success {
-  margin-top: 1rem;
-  color: green;
+  color: #155724;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
 }
 
 .bt-status-message.error {
-  margin-top: 1rem;
-  color: red;
-  padding: 12px;
-  width: 27%;
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
 }
 
 .bt-table-wrapper {
   overflow-x: auto;
+  /* padding-block: 20px; */
+  margin-block: 20px;
+  /* padding: 2rem; Padding for the table wrapper */
 }
 
 .bt-transaction-table {
@@ -151,18 +154,138 @@
 
 .bt-transaction-table th,
 .bt-transaction-table td {
-  border: 1px solid #ddd;
-  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee; /* Lighter border */
+  padding: 1rem 2rem;
   text-align: left;
+  font-size: 0.95rem;
+  color: #555;
 }
 
-.bt-status-success {
-  color: green;
-  font-weight: bold;
+.bt-transaction-table th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  font-size: 0.85rem;
 }
 
-.bt-status-failed {
-  color: red;
-  font-weight: bold;
-  
+.bt-transaction-table tr:last-child td {
+  border-bottom: none;
+}
+
+.bt-transaction-table tbody tr:hover {
+  background-color: #f0f7ff;
+}
+
+.bt-status-badge {
+  display: inline-block;
+  padding: 0.4em 0.8em;
+  border-radius: 1em; /* Pill shape */
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.bt-status-badge.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.bt-status-badge.failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Specific button styles for product table */
+.remove-from-order-btn {
+  padding: 0.6rem 1.2rem;
+  background-color: #dc3545; /* Red */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 0.9rem;
+  margin-right: 10px;
+}
+
+.remove-from-order-btn:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+.buy-from-order-btn {
+  padding: 0.6rem 1.2rem;
+  background-color: #28a745; /* Green */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.buy-from-order-btn:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
+.buy-from-order-btn:disabled {
+  background-color: #90ee90; /* Lighter green when disabled */
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .bt-container {
+    padding: 1rem;
+  }
+
+  .bt-heading {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .bt-subheading {
+    font-size: 1.2rem;
+    margin: 1rem 0 0.8rem;
+  }
+
+  .bt-section {
+    margin-bottom: 2rem;
+  }
+
+  .bt-detail-table th,
+  .bt-detail-table td,
+  .bt-transaction-table th,
+  .bt-transaction-table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .bt-payment-method {
+    padding: 1.5rem;
+  }
+
+  .bt-pay-btn {
+    width: 100%;
+    font-size: 1rem;
+  }
+
+  .bt-status-message {
+    width: 100%;
+    text-align: center;
+  }
+
+  .remove-from-order-btn,
+  .buy-from-order-btn {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 10px; /* Stack buttons on small screens */
+  }
+  .bt-detail-table td:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 }

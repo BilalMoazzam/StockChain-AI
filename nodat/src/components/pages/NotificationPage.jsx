@@ -53,7 +53,8 @@ const NotificationPage = () => {
   const filterNotifications = (filter) => {
     let filtered = [...notifications];
     if (filter === "unread") filtered = filtered.filter((n) => !n.isRead);
-    else if (filter !== "all") filtered = filtered.filter((n) => n.type === filter);
+    else if (filter !== "all")
+      filtered = filtered.filter((n) => n.type === filter);
     setFilteredNotifications(filtered);
   };
 
@@ -95,15 +96,6 @@ const NotificationPage = () => {
       />
 
       <div className="notification-container">
-        <div className="notification-header">
-          <h2>View and manage notifications</h2>
-          {unreadCount > 0 && (
-            <button className="btn btn-read-all" onClick={markAllAsRead}>
-              Mark all as read
-            </button>
-          )}
-        </div>
-
         <div className="notification-content">
           <div className="notification-sidebar">
             <div className="filter-header">
@@ -122,7 +114,9 @@ const NotificationPage = () => {
               ].map(({ label, value }) => (
                 <button
                   key={value}
-                  className={`filter-option ${activeFilter === value ? "active" : ""}`}
+                  className={`filter-option ${
+                    activeFilter === value ? "active" : ""
+                  }`}
                   onClick={() => handleFilterChange(value)}
                 >
                   {label}
@@ -138,6 +132,11 @@ const NotificationPage = () => {
             <div className="notification-list-header">
               <h3>Recent Notifications</h3>
               <div className="notification-actions">
+                {unreadCount > 0 && (
+                  <button className="btn btn-read-all" onClick={markAllAsRead}>
+                    Mark all as read
+                  </button>
+                )}
                 <select className="notification-sort">
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>

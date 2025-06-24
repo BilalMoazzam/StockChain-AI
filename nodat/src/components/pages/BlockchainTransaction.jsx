@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { getContract } from "../../lib/blockchain";
+import Header from "../layout/Header";
+import { getContract } from "../../lib/blockchain"; // Assuming this is a .js file
 import "../styles/BlockchainTransaction.css";
-import { addNotification } from "../../utils/notificationService";
+import { addNotification } from "../../utils/notificationService"; // Assuming this is a .js file
+import { ShoppingBag, CreditCard, Package } from "lucide-react"; // Using Lucide React for icons
 
 export default function BlockchainTransactionPage() {
   const { state } = useLocation();
@@ -11,7 +15,6 @@ export default function BlockchainTransactionPage() {
   const [loading, setLoading] = useState(true);
   const [isPaying, setIsPaying] = useState({});
   const [paymentStatus, setPaymentStatus] = useState("");
-  // const [statusLog, setStatusLog] = useState([]);
 
   const BLOCKCHAIN_KEY = "blockchainSelectedProducts";
   const STATUS_LOG_KEY = "blockchainPaymentStatusLog";
@@ -20,6 +23,7 @@ export default function BlockchainTransactionPage() {
     const storedLog = localStorage.getItem(STATUS_LOG_KEY);
     return storedLog ? JSON.parse(storedLog) : [];
   });
+
   useEffect(() => {
     localStorage.setItem(STATUS_LOG_KEY, JSON.stringify(statusLog));
   }, [statusLog]);
@@ -39,7 +43,7 @@ export default function BlockchainTransactionPage() {
     } else {
       setProducts(existing);
     }
-  }, [state?.product?.id]);
+  }, [state?.product?.id, state?.product]); // Added state.product to dependency array
 
   const removeProduct = (id) => {
     const existing = JSON.parse(localStorage.getItem(BLOCKCHAIN_KEY)) || [];
@@ -53,7 +57,9 @@ export default function BlockchainTransactionPage() {
       setLoading(true);
       const contract = await getContract(false); // read-only
       const count = await contract.getTransactionCount();
-      const txCount = count.toNumber ? count.toNumber() : parseInt(count);
+      const txCount = count.toNumber
+        ? count.toNumber()
+        : Number.parseInt(count);
 
       const allTx = [];
       for (let i = 0; i < txCount; i++) {
@@ -220,121 +226,141 @@ export default function BlockchainTransactionPage() {
   };
 
   return (
-    <div className="bt-container">
-      <h1 className="bt-heading">Blockchain Transactions</h1>
+    <div>
+      <Header
+        title="Blockchain Transactions"
+        breadcrumbs={[
+          { text: "Dashboard", active: false },
+          { text: "Blockchain Transactions", active: true },
+        ]}
+      />
 
-      {products.length > 0 && (
-        <div className="bt-section bt-product-payment">
-          <h3 className="bt-subheading">🛍️ Selected Products</h3>
-          <table className="bt-detail-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Price</th>
-                <th>SKU</th>
-                <th>ID</th>
-                <th>Size</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product, idx) => (
-                <tr key={idx}>
-                  <td>{product.name}</td>
-                  <td>Rs. {product.price}</td>
-                  <td>{product.sku || "N/A"}</td>
-                  <td>{product.id || "N/A"}</td>
-                  <td>{product.size || "Standard"}</td>
-                  <td>{product.status || "In Stock"}</td>
-                  <td>
-                    <button
-                      onClick={() => removeProduct(product.id)}
-                      className="remove-from-order-btn"
-                    >
-                      Remove
-                    </button>
-                    <button
-                      onClick={() => handleSinglePayment(product)}
-                      disabled={!!isPaying[product.id]}
-                      className="buy-from-order-btn"
-                    >
-                      {isPaying[product.id] ? "Processing..." : "Pay Amount"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="bt-container">
+        {/* <h1 className="bt-heading">Blockchain Transactions</h1> */}
 
-          <div className="bt-payment-method">
-            <h4 className="bt-subheading">💳 Payment Method</h4>
-            <p>
-              Payment via <strong>MetaMask Wallet</strong>
-            </p>
-            <button
-              onClick={handleBulkPayment}
-              disabled={!!isPaying.all}
-              className="bt-pay-btn"
-            >
-              {isPaying.all ? "Processing..." : "Confirm & Pay for All"}
-            </button>
-            {paymentStatus && (
-              <p
-                className={`bt-status-message ${
-                  paymentStatus.startsWith("✅") ? "success" : "error"
-                }`}
-              >
-                {paymentStatus}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="bt-section">
-        <h3 className="bt-subheading">📦 Payment Status Log</h3>
-        <div className="bt-table-wrapper">
-          <table className="bt-transaction-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Status</th>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Size</th>
-                <th>Price</th>
-                <th>SKU</th>
-              </tr>
-            </thead>
-            <tbody>
-              {statusLog.length === 0 ? (
-                <tr>
-                  <td colSpan="7">No payment log available yet.</td>
-                </tr>
-              ) : (
-                statusLog.map((log, index) => (
-                  <tr key={index}>
-                    <td>{log.time}</td>
-                    <td
-                      className={
-                        log.status === "Accepted"
-                          ? "bt-status-success"
-                          : "bt-status-failed"
-                      }
-                    >
-                      {log.status}
-                    </td>
-                    <td>{log.product.name}</td>
-                    <td>{log.product.id || "N/A"}</td>
-                    <td>{log.product.size || "N/A"}</td>
-                    <td>Rs. {log.product.price}</td>
-                    <td>{log.product.sku || "N/A"}</td>
+        {products.length > 0 && (
+          <div className="bt-section bt-product-payment">
+            <h3 className="bt-subheading">
+              <ShoppingBag size={24} /> Selected Products
+            </h3>
+            <div className="bt-table-wrapper">
+              <table className="bt-detail-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>SKU</th>
+                    <th>ID</th>
+                    <th>Size</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ))
+                </thead>
+                <tbody>
+                  {products.map((product, idx) => (
+                    <tr key={idx}>
+                      <td>{product.name}</td>
+                      <td>Rs. {product.price}</td>
+                      <td>{product.sku || "N/A"}</td>
+                      <td>{product.id || "N/A"}</td>
+                      <td>{product.size || "Standard"}</td>
+                      <td>{product.status || "In Stock"}</td>
+                      <td>
+                        <button
+                          onClick={() => removeProduct(product.id)}
+                          className="remove-from-order-btn"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          onClick={() => handleSinglePayment(product)}
+                          disabled={!!isPaying[product.id]}
+                          className="buy-from-order-btn"
+                        >
+                          {isPaying[product.id]
+                            ? "Processing..."
+                            : "Pay Amount"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bt-payment-method">
+              <h4 className="bt-subheading">
+                <CreditCard size={24} /> Payment Method
+              </h4>
+              <p>
+                Payment via <strong>MetaMask Wallet</strong>
+              </p>
+              <button
+                onClick={handleBulkPayment}
+                disabled={!!isPaying.all}
+                className="bt-pay-btn"
+              >
+                {isPaying.all ? "Processing..." : "Confirm & Pay for All"}
+              </button>
+              {paymentStatus && (
+                <p
+                  className={`bt-status-message ${
+                    paymentStatus.startsWith("✅") ? "success" : "error"
+                  }`}
+                >
+                  {paymentStatus}
+                </p>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
+        )}
+
+        <div className="bt-section">
+          <h3 className="bt-subheading">
+            <Package size={24} /> Payment Status Log
+          </h3>
+          <div className="bt-table-wrapper">
+            <table className="bt-transaction-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th>Name</th>
+                  <th>ID</th>
+                  <th>Size</th>
+                  <th>Price</th>
+                  <th>SKU</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statusLog.length === 0 ? (
+                  <tr>
+                    <td colSpan="7">No payment log available yet.</td>
+                  </tr>
+                ) : (
+                  statusLog.map((log, index) => (
+                    <tr key={index}>
+                      <td>{log.time}</td>
+                      <td>
+                        <span
+                          className={`bt-status-badge ${
+                            log.status === "Accepted" ? "success" : "failed"
+                          }`}
+                        >
+                          {log.status}
+                        </span>
+                      </td>
+                      <td>{log.product.name}</td>
+                      <td>{log.product.id || "N/A"}</td>
+                      <td>{log.product.size || "N/A"}</td>
+                      <td>Rs. {log.product.price}</td>
+                      <td>{log.product.sku || "N/A"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

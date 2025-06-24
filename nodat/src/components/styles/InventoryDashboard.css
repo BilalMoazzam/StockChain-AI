@@ -1,124 +1,587 @@
-.inventory-dashboard {
-  padding: 20px;
+/* General layout for the analytics report page */
+.analytics-report {
+  padding: 0; /* Removed padding here, container will handle it */
+  background-color: #f8f9fa; /* Light background for the page */
+  min-height: calc(100vh - 60px); /* Adjust based on header height */
 }
 
-.dashboard-charts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+.analytics-container {
+  max-width: 1500px;
+  margin: 0 auto; /* Center the container */
+  padding: 30px 20px; /* Decreased left/right padding */
+  background-color: #ffffff;
+  border-radius: 10px; /* Slightly more rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* More prominent shadow */
 }
 
-.chart-card {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+/* Header section within the analytics container */
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px; /* Increased margin */
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e9ecef; /* Lighter border */
 }
 
-.chart-card h3 {
-  font-size: 16px;
-  font-weight: 600;
+.analytics-header .header-left h2 {
+  font-size: 28px; /* Larger font size */
+  color: #343a40; /* Darker text */
+  margin-bottom: 8px;
+}
+
+.analytics-header .header-left .last-updated {
+  font-size: 15px;
+  color: #6c757d; /* Muted text */
+  display: flex;
+  align-items: center;
+}
+
+.analytics-header .header-left .btn-refresh {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+
+.analytics-header .header-left .btn-refresh:hover {
+  color: #0056b3;
+}
+
+.analytics-header .header-right .date-range-selector label {
+  font-size: 15px;
+  color: #555;
+  margin-right: 10px;
+}
+
+.analytics-header .header-right .date-range-selector select {
+  padding: 10px 15px; /* Increased padding */
+  border: 1px solid #ced4da; /* Lighter border */
+  border-radius: 5px;
+  font-size: 15px;
   color: #333;
-  margin: 0 0 15px 0;
+  background-color: #fff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
 }
 
-.chart-container {
+.analytics-header .header-right .date-range-selector select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 80px; /* More padding */
+  font-size: 20px;
+  color: #555;
+}
+
+/* Metrics Cards */
+.metrics-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px; /* Increased gap */
+  margin-bottom: 50px; /* Increased margin */
+}
+
+.metric-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 30px; /* Increased padding */
+  display: flex;
+  align-items: center;
+  gap: 25px; /* Increased gap */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-8px); /* More pronounced hover effect */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.metric-icon {
+  width: 55px; /* Larger icon size */
+  height: 55px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #ffffff;
+  font-size: 28px; /* Larger icon */
+}
+
+.metric-card.sales .metric-icon {
+  background-color: #ffc107; /* Yellow */
+}
+
+.metric-card.product .metric-icon {
+  background-color: #007bff; /* Blue */
+}
+
+.metric-card.inventory .metric-icon {
+  background-color: #28a745; /* Green */
+}
+
+.metric-content h4 {
+  font-size: 17px;
+  color: #6c757d;
+  margin-bottom: 8px;
+}
+
+.metric-content .metric-value {
+  font-size: 32px; /* Larger value font size */
+  font-weight: bold;
+  color: #343a40;
+}
+
+/* Sections for charts and reports */
+.section {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 30px; /* Increased padding */
+  margin-bottom: 30px;
+}
+
+.section-header {
+  margin-bottom: 25px; /* Increased margin */
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.section-header h3 {
+  font-size: 22px; /* Larger font size */
+  color: #ffffff;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 25px; 
   height: 300px;
 }
 
-.recent-activity {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.recent-activity h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 15px 0;
-}
-
-.activity-list {
+.chart-container {
+  height: 100%; 
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  justify-content: center; 
+  align-items: center; 
+   background-color: #f9f9f9;
 }
 
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.activity-item:last-child {
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.activity-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  margin-right: 15px;
-}
-
-.activity-icon.add {
-  background-color: #e8f5e9;
-  color: #4caf50;
-}
-
-.activity-icon.remove {
-  background-color: #ffebee;
-  color: #f44336;
-}
-
-.activity-icon.update {
-  background-color: #e3f2fd;
-  color: #2196f3;
-}
-
-.activity-icon.alert {
-  background-color: #fff8e1;
-  color: #ff9800;
-}
-
-.activity-details {
-  flex: 1;
-}
-
-.activity-text {
-  font-size: 14px;
-  color: #333;
-  margin: 0 0 5px 0;
-}
-
-.activity-time {
-  font-size: 12px;
-  color: #666;
-  margin: 0;
-}
-
-.inventory-readonly-overlay {
-  position: relative;
-}
-
-.inventory-readonly-overlay::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
+.chart-wrapper {
+ 
   width: 100%;
   height: 100%;
-  z-index: 9999;
-  background: transparent;
-  pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #343a40;
+  margin-bottom: 20px; /* Increased margin */
+  text-align: center;
+}
+
+/* AI Prediction Table */
+.ai-prediction-table-container {
+  overflow-x: auto;
+}
+
+.ai-prediction-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+.ai-prediction-table th,
+.ai-prediction-table td {
+  border: 1px solid #eee;
+  padding: 12px 15px;
+  text-align: left;
+}
+
+.ai-prediction-table th {
+  background-color: #f2f2f2;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap; /* Prevent header text wrapping */
+}
+
+.ai-prediction-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.ai-prediction-table tbody tr:hover {
+  background-color: #f0f0f0;
+}
+
+.stock-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.stock-status.in-stock {
+  background-color: #28a745; /* Green */
+}
+
+.stock-status.low-stock {
+  background-color: #ffc107; /* Yellow */
+  color: #333;
+}
+
+.stock-status.out-of-stock {
+  background-color: #dc3545; /* Red */
+}
+
+.ai-prediction {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.ai-prediction.enough {
+  background-color: #28a745; /* Green */
+}
+
+.ai-prediction.monitor {
+  background-color: #ffc107; /* Yellow */
+  color: #333;
+}
+
+.ai-prediction.reorder {
+  background-color: #dc3545; /* Red */
+}
+/* Pagination controls */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 30px; /* Increased margin */
+  gap: 8px; /* Reduced gap between buttons */
+  flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+
+.pagination-controls button {
+  padding: 10px 15px; /* Increased padding */
+  border: 1px solid #007bff;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.pagination-controls button:disabled {
+  background-color: #e9ecef;
+  border-color: #e9ecef;
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.pagination-controls button.active {
+  background-color: #0056b3; /* Darker blue for active page */
+  border-color: #0056b3;
+  color: white;
+  font-weight: bold;
+}
+
+.pagination-controls span {
+  font-size: 15px;
+  color: #555;
+  margin: 0 10px;
+}
+
+/* Product Sales Lookup Styles */
+.product-lookup-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 10px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-input-group input {
+  flex-grow: 1;
+  padding: 10px 15px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 16px;
+  outline: none;
+}
+
+.search-input-group button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease;
+}
+
+.search-input-group button:hover {
+  background-color: #0056b3;
+}
+
+.error-message-lookup {
+  color: #dc3545;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.product-details {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.product-details h4 {
+  font-size: 20px;
+  color: #343a40;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 10px;
+}
+
+.product-details p {
+  font-size: 16px;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.product-details p strong {
+  color: #343a40;
+}
+
+/* Customizable Report Table Styles */
+.customizable-report .report-table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.customizable-report .report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  text-align: left;
+}
+
+.customizable-report .report-table th,
+.customizable-report .report-table td {
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.customizable-report .report-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+}
+
+.customizable-report .report-table tbody tr:hover {
+  background-color: #f2f2f2;
+}
+/* ─────────── Customizable Report Styles ─────────── */
+.customizable-report {
+  /* container spacing */
+  margin-top: 20px;
+  padding: 20px;
+}
+.customizable-report label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+.customizable-report select {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.customizable-report .report-output {
+  margin-top: 20px;
+}
+
+/* If you want the table version: */
+.customizable-report .report-table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+.customizable-report .report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  text-align: left;
+}
+.customizable-report .report-table th,
+.customizable-report .report-table td {
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+.customizable-report .report-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+}
+.customizable-report .report-table tbody tr:hover {
+  background-color: #f2f2f2;
+}
+/* Customizable Report */
+.customizable-report { /* container spacing */ }
+.customizable-report .form-row { /* layout for the selects */ }
+.customizable-report .metrics-cards { /* grid for metric cards */ }
+/* etc */
+
+/* Product Lookup */
+.product-lookup-container { /* overall padding */ }
+.lookup-summary-cards { /* grid for lookup cards */ }
+/* --------------------------------------------------
+   Lookup Table (matches and Top 5)
+   -------------------------------------------------- */
+.lookup-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+.lookup-table th,
+.lookup-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #dee2e6;
+  text-align: left;
+}
+
+.lookup-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #343a40;
+  text-transform: uppercase;
+}
+
+.lookup-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* --------------------------------------------------
+   Pagination Controls
+   -------------------------------------------------- */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
+  gap: 12px;
+}
+
+.pagination-controls button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pagination-controls button:disabled {
+  background-color: #cfd8dc;
+  cursor: default;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.pagination-controls span {
+  font-size: 14px;
+  color: #495057;
+}
+
+/* --------------------------------------------------
+   Top Products Section
+   -------------------------------------------------- */
+.top-products {
+  margin-top: 40px;
+}
+
+.top-products h4 {
+  font-size: 18px;
+  color: #343a40;
+  margin-bottom: 12px;
+}
+
+/* ─────────── Export Reports Styles ─────────── */
+.export-reports {
+  margin-top: 20px;
+  padding: 20px;
+}
+.export-reports label {
+  display: inline-block;
+  margin-right: 15px;
+  font-weight: 500;
+}
+.export-reports select {
+  margin-left: 5px;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.export-reports button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  margin-left: 10px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.export-reports button:hover {
+  background-color: #0056b3;
 }

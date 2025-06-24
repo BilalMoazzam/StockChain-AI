@@ -1,80 +1,88 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Link, useNavigate, useLocation } from "react-router-dom"
-import "../styles/Login.css"
-import { useApp } from "../../context/AppContext" // Import useApp hook
-
-// ✅ Update this to match your backend
-// const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000"; // No longer needed here
+import { useState, useContext } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import "../styles/Login.css";
+import { useApp } from "../../context/AppContext";
+import { UserContext } from "../../context/UserContext";
 
 const Login = ({ onLoginSuccess }) => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { actions } = useApp() // Get actions from AppContext
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { actions } = useApp();
+  const { setUsername } = useContext(UserContext);
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
-  })
+  });
 
-  const [errors, setErrors] = useState({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [loginError, setLoginError] = useState("")
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
-  const successMessage = location.state?.message || ""
+  const successMessage = location.state?.message || "";
 
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors = {};
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid"
+      newErrors.email = "Email is invalid";
     }
     if (!formData.password) {
-      newErrors.password = "Password is required"
+      newErrors.password = "Password is required";
     }
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
-    }))
+    }));
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }))
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-  }
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!validateForm()) return
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsSubmitting(true)
-    setLoginError("")
+  setIsSubmitting(true);
+  setLoginError("");
 
-    try {
-      // ✅ Call the login function from AppContext actions
-      const success = await actions.login(formData.email, formData.password, formData.rememberMe)
+  try {
+    const user = await actions.login(
+      formData.email,
+      formData.password,
+      formData.rememberMe
+    );
 
-      if (success) {
-        if (onLoginSuccess) onLoginSuccess()
-        navigate("/")
-      } else {
-        // This path might be hit if actions.login returns false, though it typically throws an error
-        setLoginError("Login failed. Please check your credentials.")
-      }
-    } catch (error) {
-      console.error("Login error:", error)
-      setLoginError(error.message || "An unexpected error occurred during login.")
-    } finally {
-      setIsSubmitting(false)
+    const employeeName = user?.name;
+
+    if (employeeName) {
+      setUsername(employeeName); // ✅ "Bilal Moazzammmm"
+      localStorage.setItem("username", employeeName);
+      if (onLoginSuccess) onLoginSuccess();
+      navigate("/");
+    } else {
+      setLoginError("Login failed: user name not found.");
     }
+  } catch (error) {
+    console.error("Login error:", error);
+    setLoginError(
+      error.message || "An unexpected error occurred during login."
+    );
+  } finally {
+    setIsSubmitting(false);
   }
+};
+
 
   return (
     <div className="enhanced-auth-page">
@@ -86,7 +94,9 @@ const Login = ({ onLoginSuccess }) => {
             <p>Fill your information below</p>
           </div>
 
-          {successMessage && <div className="success-alert">{successMessage}</div>}
+          {successMessage && (
+            <div className="success-alert">{successMessage}</div>
+          )}
           {loginError && <div className="error-alert">{loginError}</div>}
 
           <form className="enhanced-auth-form" onSubmit={handleSubmit}>
@@ -99,7 +109,9 @@ const Login = ({ onLoginSuccess }) => {
                 onChange={handleChange}
                 className={`form-input ${errors.email ? "error" : ""}`}
               />
-              {errors.email && <span className="field-error">{errors.email}</span>}
+              {errors.email && (
+                <span className="field-error">{errors.email}</span>
+              )}
             </div>
 
             <div className="form-field">
@@ -111,7 +123,9 @@ const Login = ({ onLoginSuccess }) => {
                 onChange={handleChange}
                 className={`form-input ${errors.password ? "error" : ""}`}
               />
-              {errors.password && <span className="field-error">{errors.password}</span>}
+              {errors.password && (
+                <span className="field-error">{errors.password}</span>
+              )}
               <div className="forgot-password-link">
                 <Link to="/forgot-password">Forget password</Link>
               </div>
@@ -119,13 +133,22 @@ const Login = ({ onLoginSuccess }) => {
 
             <div className="checkbox-section">
               <label className="custom-checkbox">
-                <input type="checkbox" name="rememberMe" checked={formData.rememberMe} onChange={handleChange} />
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={formData.rememberMe}
+                  onChange={handleChange}
+                />
                 <span className="checkbox-mark"></span>
                 Remember me
               </label>
             </div>
 
-            <button type="submit" className="submit-btn" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
           </form>
@@ -138,7 +161,7 @@ const Login = ({ onLoginSuccess }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;
