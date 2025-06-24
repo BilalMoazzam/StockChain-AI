@@ -56,7 +56,7 @@ def predict_all():
     # Select only the columns needed for the frontend, INCLUDING 'Category'
     # Ensure all columns expected by the frontend are here
     required_columns = [
-        'ProductID', 'ProductName', 'quantity', 'Price', 'stock', 'ai_prediction', 'Category' # ADD 'Category' HERE
+        'ProductID', 'ProductName', 'quantity', 'Price', 'stock', 'ai_prediction', 'Category', 'Image' # ADD 'Category' HERE
     ]
     
     # Filter df_result to only include required columns, handling missing ones gracefully
