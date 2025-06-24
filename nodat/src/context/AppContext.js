@@ -196,7 +196,7 @@ export const AppProvider = ({ children }) => {
         // If sync fails, still proceed with login using auth data
       }
 
-      // Update localStorage and context with the most complete user data
+      
       localStorage.setItem("user", JSON.stringify(finalUserData))
       dispatch({ type: actionTypes.SET_USER, payload: finalUserData })
       dispatch({ type: actionTypes.SET_LOADING, payload: false })
