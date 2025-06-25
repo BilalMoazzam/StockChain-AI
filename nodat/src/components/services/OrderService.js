@@ -14,7 +14,7 @@ class OrderService {
     }
   }
 
-  // Get single order
+  // Get single ord
   async getOrder(id) {
     try {
       const response = await apiService.get(`/orders/${id}`);

@@ -25,5 +25,5 @@ export async function fetchInventory() {
     );
   }
 
-  return res.json(); // { items, alerts }
+  return res.json(); 
 }
