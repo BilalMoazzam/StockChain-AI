@@ -8,6 +8,8 @@ const errorHandler = require('./middleware/errorHandler');
 const Product = require('./models/Product');
 
 const app = express();
+const blockchainRoutes = require('./routes/blockchainRoutes');
+
 
 /* ───────────────── GLOBAL MIDDLEWARES ───────────────── */
 app.use(cors());
@@ -21,6 +23,10 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/orders', require('./routes/orders'));
+// app.use('/api/blockchain', blockchainRoutes);
+app.use('/api/blockchain', require('./routes/blockchainRoutes'));
+
+
 
 // health check
 app.get('/', (_, res) =>

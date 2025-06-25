@@ -71,7 +71,7 @@ const Sidebar = ({ onShowLogoutModal }) => {
           <Boxes size={20} />
           <span>Products</span>
         </NavLink> */}
-        <NavLink
+        {/* <NavLink
           to="/productCard"
           className={({ isActive }) =>
             isActive ? "nav-link active" : "nav-link"
@@ -79,7 +79,7 @@ const Sidebar = ({ onShowLogoutModal }) => {
         >
           <Boxes size={20} />
           <span>Product Page</span>
-        </NavLink>
+        </NavLink> */}
 
         {/* <NavLink
           to="/cart"

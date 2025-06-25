@@ -13,13 +13,13 @@ const { validateOrder } = require('../middleware/validation');
 
 const router = express.Router();
 
-router.use(protect); // All routes are protected
+// 1) Public: anyone can list orders
+router.get('/', getOrders);
 
-router
-  .route('/')
-  .get(getOrders)
-  .post(validateOrder, createOrder);
+// 2) All remaining routes require authentication
+router.use(protect);
 
+router.post('/', validateOrder, createOrder);
 router.get('/stats', getOrderStats);
 
 router
@@ -30,4 +30,4 @@ router
 
 router.put('/:id/status', updateOrderStatus);
 
-module.exports = router;    
+module.exports = router;

@@ -318,7 +318,7 @@ useEffect(() => {
 
 
   return (
-    <div className="inventory-readonly-overlay" style={{ padding: "24px" }}>
+    <div className="" style={{ padding: "24px" }}>
       {/* Stats Cards */}
       <div
         style={{

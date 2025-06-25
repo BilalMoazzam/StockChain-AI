@@ -7,6 +7,7 @@ import { getContract } from "../../lib/blockchain"; // Assuming this is a .js fi
 import "../styles/BlockchainTransaction.css";
 import { addNotification } from "../../utils/notificationService"; // Assuming this is a .js file
 import { ShoppingBag, CreditCard, Package } from "lucide-react"; // Using Lucide React for icons
+import { saveBlockchainTransaction } from "../services/blockchain";
 
 export default function BlockchainTransactionPage() {
   const { state } = useLocation();
@@ -96,77 +97,93 @@ export default function BlockchainTransactionPage() {
   };
 
   const handleSinglePayment = async (product) => {
-    if (!product) return;
+  if (!product) return;
 
-    try {
-      setIsPaying((prev) => ({ ...prev, [product.id]: true }));
-      setPaymentStatus("🔄 Connecting MetaMask...");
+  try {
+    setIsPaying((prev) => ({ ...prev, [product.id]: true }));
+    setPaymentStatus("🔄 Connecting MetaMask...");
 
-      await ensureWalletConnected();
-      const contract = await getContract(true); // signer-enabled
+    await ensureWalletConnected();
+    const contract = await getContract(true); // signer-enabled
 
-      const tx = await contract.recordTransaction(
-        "tx-" + Date.now(),
-        "User",
-        "Shop",
-        "Purchase",
-        product?.name || "Unnamed Product",
-        1,
-        "Confirmed"
-      );
+    const tx = await contract.recordTransaction(
+      "tx-" + Date.now(),
+      "User",
+      "Shop",
+      "Purchase",
+      product?.name || "Unnamed Product",
+      1,
+      "Confirmed"
+    );
 
-      await tx.wait();
+    await tx.wait();
 
-      // ✅ Success Notification
-      addNotification({
-        type: "payment",
-        title: "Payment Successful",
-        description: `Transaction for "${product.name}" (ID: ${product.id}) was successfully confirmed.`,
-        priority: "normal",
-        icon: "check",
-        link: "/blockchain",
-      });
+    addNotification({
+      type: "payment",
+      title: "Payment Successful",
+      description: `Transaction for "${product.name}" (ID: ${product.id}) was successfully confirmed.`,
+      priority: "normal",
+      icon: "check",
+      link: "/blockchain",
+    });
 
-      setStatusLog((prev) => [
-        { time: new Date().toLocaleString(), status: "Accepted", product },
-        ...prev,
-      ]);
+    const acceptedLog = {
+      time: new Date().toISOString(),
+      status: "Accepted",
+      name: product.name,
+      id: product.id,
+      size: product.size,
+      price: product.price,
+      sku: product.sku,
+    };
 
-      setPaymentStatus("✅ Payment confirmed!");
-      await loadTransactions();
-      removeProduct(product.id);
-    } catch (err) {
-      console.error("Payment failed:", err);
-      setPaymentStatus("❌ Payment failed or denied.");
+    setStatusLog((prev) => [{ time: new Date().toLocaleString(), status: "Accepted", product }, ...prev]);
+    await saveBlockchainTransaction(acceptedLog);
 
-      // ❌ Failure Notification
-      addNotification({
-        type: "payment",
-        title: "Blockchain Transaction Failed",
-        description: `Transaction for "${product.name}" (ID: ${product.id}) was declined.`,
-        priority: "high",
-        icon: "alert",
-        link: "/blockchain",
-      });
+    setPaymentStatus("✅ Payment confirmed!");
+    await loadTransactions();
+    removeProduct(product.id);
+  } catch (err) {
+    console.error("Payment failed:", err);
+    setPaymentStatus("❌ Payment failed or denied.");
 
-      setStatusLog((prev) => [
-        { time: new Date().toLocaleString(), status: "Declined", product },
-        ...prev,
-      ]);
-    } finally {
-      setIsPaying((prev) => ({ ...prev, [product.id]: false }));
-    }
-  };
+    addNotification({
+      type: "payment",
+      title: "Blockchain Transaction Failed",
+      description: `Transaction for "${product.name}" (ID: ${product.id}) was declined.`,
+      priority: "high",
+      icon: "alert",
+      link: "/blockchain",
+    });
+
+    const declinedLog = {
+      time: new Date().toISOString(),
+      status: "Declined",
+      name: product.name,
+      id: product.id,
+      size: product.size,
+      price: product.price,
+      sku: product.sku,
+    };
+
+    setStatusLog((prev) => [{ time: new Date().toLocaleString(), status: "Declined", product }, ...prev]);
+    await saveBlockchainTransaction(declinedLog);
+  } finally {
+    setIsPaying((prev) => ({ ...prev, [product.id]: false }));
+  }
+};
+
 
   const handleBulkPayment = async () => {
-    try {
-      setIsPaying((prev) => ({ ...prev, all: true }));
-      setPaymentStatus("🔄 Connecting MetaMask...");
+  try {
+    setIsPaying((prev) => ({ ...prev, all: true }));
+    setPaymentStatus("🔄 Connecting MetaMask...");
 
-      await ensureWalletConnected();
-      const contract = await getContract(true);
+    await ensureWalletConnected();
+    const contract = await getContract(true);
 
-      const txPromises = products.map(async (product) => {
+    const txPromises = products.map(async (product) => {
+      try {
         const tx = await contract.recordTransaction(
           "tx-" + Date.now(),
           "User",
@@ -176,9 +193,10 @@ export default function BlockchainTransactionPage() {
           1,
           "Confirmed"
         );
+
         await tx.wait();
 
-        // ✅ Success Notification per product
+        // ✅ Notification
         addNotification({
           type: "payment",
           title: "Bulk Payment Successful",
@@ -188,24 +206,26 @@ export default function BlockchainTransactionPage() {
           link: "/blockchain",
         });
 
+        const logEntry = {
+          time: new Date().toISOString(),
+          status: "Accepted",
+          name: product.name,
+          id: product.id,
+          size: product.size,
+          price: product.price,
+          sku: product.sku,
+        };
+
         setStatusLog((prev) => [
           { time: new Date().toLocaleString(), status: "Accepted", product },
           ...prev,
         ]);
-      });
 
-      await Promise.all(txPromises);
+        await saveBlockchainTransaction(logEntry);
+      } catch (err) {
+        console.error("Single bulk tx failed:", err);
 
-      setPaymentStatus("✅ All payments confirmed!");
-      await loadTransactions();
-      localStorage.removeItem(BLOCKCHAIN_KEY);
-      setProducts([]);
-    } catch (err) {
-      console.error("Bulk payment failed:", err);
-      setPaymentStatus("❌ Payment failed or denied.");
-
-      for (const product of products) {
-        // ❌ Failure Notification per product (optional)
+        // ❌ Notification
         addNotification({
           type: "payment",
           title: "Bulk Payment Failed",
@@ -215,15 +235,39 @@ export default function BlockchainTransactionPage() {
           link: "/blockchain",
         });
 
+        const logEntry = {
+          time: new Date().toISOString(),
+          status: "Declined",
+          name: product.name,
+          id: product.id,
+          size: product.size,
+          price: product.price,
+          sku: product.sku,
+        };
+
         setStatusLog((prev) => [
           { time: new Date().toLocaleString(), status: "Declined", product },
           ...prev,
         ]);
+
+        await saveBlockchainTransaction(logEntry);
       }
-    } finally {
-      setIsPaying((prev) => ({ ...prev, all: false }));
-    }
-  };
+    });
+
+    await Promise.all(txPromises);
+
+    setPaymentStatus("✅ All payments processed.");
+    await loadTransactions();
+    localStorage.removeItem(BLOCKCHAIN_KEY);
+    setProducts([]);
+  } catch (err) {
+    console.error("Bulk payment main error:", err);
+    setPaymentStatus("❌ Bulk payment failed completely.");
+  } finally {
+    setIsPaying((prev) => ({ ...prev, all: false }));
+  }
+};
+
 
   return (
     <div>
