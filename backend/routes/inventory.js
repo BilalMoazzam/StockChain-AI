@@ -45,6 +45,7 @@ router
   .delete(authorize('Admin', 'Manager'), deleteProduct);  // Delete product (authorized roles)
 
 // PUT: Update stock for a specific product
+// PUT: Update stock for a specific product
 router.put('/:id/stock', async (req, res) => {
   try {
     const { id } = req.params;
@@ -57,7 +58,7 @@ router.put('/:id/stock', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Temporarily reduce the stock in session
+    // Temporarily reduce the stock in session (optional)
     req.session.tempStock = req.session.tempStock || {};
     if (req.session.tempStock[id]) {
       req.session.tempStock[id] -= quantityOrdered;  // Reduce stock from session temporarily
@@ -65,15 +66,33 @@ router.put('/:id/stock', async (req, res) => {
       req.session.tempStock[id] = product.quantity - quantityOrdered; // Set initial value
     }
 
-    // Optionally, save this temporary stock update to the product (in database or session)
+    // Update product quantity and status in the database (or session)
+    product.quantity -= quantityOrdered;  // Deduct stock from product
+
+    // Calculate the new status based on the updated quantity
+    const LOW_STOCK_THRESHOLD = 5;
+    let status = "In Stock";  // Default status
+
+    if (product.quantity <= 0) {
+      status = "Out of Stock";
+    } else if (product.quantity <= LOW_STOCK_THRESHOLD) {
+      status = "Low Stock";
+    }
+
+    // Update status in the database
+    product.status = status;
+    await product.save();
+
     res.status(200).json({
-      message: `Stock updated temporarily for product ID: ${id}. New stock: ${req.session.tempStock[id]}`,
-      stock: req.session.tempStock[id]
+      message: `Stock updated successfully for product ID: ${id}. New stock: ${product.quantity}`,
+      stock: product.quantity,
+      status: product.status  // Return the updated stock status
     });
   } catch (err) {
     res.status(500).json({ message: 'Error updating stock', error: err });
   }
 });
+
 
 // Reset session data when user logs out (clear tempStock)
 router.post('/logout', (req, res) => {

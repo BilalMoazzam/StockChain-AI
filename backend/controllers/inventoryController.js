@@ -79,6 +79,7 @@ const getProducts = async (req, res) => {
 // @desc    Get single product
 // @route   GET /api/inventory/:id
 // @access  Private
+// In your backend API controller (inventoryController.js)
 const getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -94,6 +95,20 @@ const getProduct = async (req, res) => {
       });
     }
 
+    // Calculate status based on quantity (ensure consistency)
+    const LOW_STOCK_THRESHOLD = 9;
+    let status = "In Stock";  // Default status
+
+    if (product.quantity <= 0) {
+      status = "Out of Stock";
+    } else if (product.quantity <= LOW_STOCK_THRESHOLD) {
+      status = "Low Stock";
+    }
+
+    // Update product status dynamically in response
+    product.status = status;
+
+    // Send the updated product data with the new status
     res.status(200).json({
       success: true,
       data: product
@@ -106,6 +121,7 @@ const getProduct = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Create new product
 // @route   POST /api/inventory
@@ -339,6 +355,8 @@ const getLowStockAlerts = async (req, res) => {
     });
   }
 };
+
+
 
 module.exports = {
   getProducts,

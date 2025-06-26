@@ -183,99 +183,197 @@ const InventoryManagement = () => {
     setShowProductDetails(true)
   }
 
-  const handleAddToOrder = async (item, quantity) => {
-    if (quantity > item.quantity) {
-      setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
-      return
-    }
 
-    const totalPrice = item.price * quantity
-    const storedList = JSON.parse(localStorage.getItem("selectedProductFromInventory")) || []
-    const existingIndex = storedList.findIndex((p) => p.id === item.id)
+  // const handleAddToOrder = async (item, quantity) => {
+  //   if (quantity > item.quantity) {
+  //     setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+  //     return
+  //   }
 
-    if (existingIndex !== -1) {
-      if (storedList[existingIndex].quantity + quantity > item.quantity) {
-        setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
-        return
-      }
-      storedList[existingIndex].quantity += quantity
-      storedList[existingIndex].totalPrice = storedList[existingIndex].quantity * item.price
-    } else {
-      if (quantity > item.quantity) {
-        setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
-        return
-      }
-      storedList.push({ ...item, quantity, totalPrice })
-    }
+  //   const totalPrice = item.price * quantity
+  //   const storedList = JSON.parse(localStorage.getItem("selectedProductFromInventory")) || []
+  //   const existingIndex = storedList.findIndex((p) => p.id === item.id)
 
-    localStorage.setItem("selectedProductFromInventory", JSON.stringify(storedList))
+  //   if (existingIndex !== -1) {
+  //     if (storedList[existingIndex].quantity + quantity > item.quantity) {
+  //       setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+  //       return
+  //     }
+  //     storedList[existingIndex].quantity += quantity
+  //     storedList[existingIndex].totalPrice = storedList[existingIndex].quantity * item.price
+  //   } else {
+  //     if (quantity > item.quantity) {
+  //       setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+  //       return
+  //     }
+  //     storedList.push({ ...item, quantity, totalPrice })
+  //   }
 
-    const updatedInventory = inventory.map((product) => {
-      if (product.id === item.id) {
-        const newQty = product.quantity - quantity
-        return {
-          ...product,
-          quantity: newQty,
-          status: getItemStatus({ ...product, quantity: newQty }),
-        }
-      }
-      return product
-    })
+  //   localStorage.setItem("selectedProductFromInventory", JSON.stringify(storedList))
 
-    updateInventoryState(updatedInventory)
+  //   const updatedInventory = inventory.map((product) => {
+  //     if (product.id === item.id) {
+  //       const newQty = product.quantity - quantity
+  //       return {
+  //         ...product,
+  //         quantity: newQty,
+  //         status: getItemStatus({ ...product, quantity: newQty }),
+  //       }
+  //     }
+  //     return product
+  //   })
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/products/${item.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          quantity: item.quantity - quantity,
-        }),
-      })
+  //   updateInventoryState(updatedInventory)
 
-      if (!response.ok) {
-        throw new Error("Failed to update stock in the database.")
-      }
+  //   try {
+  //     const response = await fetch(`http://localhost:5000/api/products/${item.id}`, {
+  //       method: "PUT",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         quantity: item.quantity - quantity,
+  //       }),
+  //     })
 
-      const updatedInventoryFromDB = await fetch("http://localhost:5000/api/products").then((res) => res.json())
+  //     if (!response.ok) {
+  //       throw new Error("Failed to update stock in the database.")
+  //     }
 
-      const mappedUpdatedInventory = updatedInventoryFromDB.map((p) => {
-        const price = Number.parseFloat(p.Price || p.price) || 0
-        const quantity = Number.parseInt(p.quantity || p.Quantity) || 0
-        const status = getItemStatus({ ...p, quantity })
-        return {
-          id: p.id ?? p._id ?? `prod-${Date.now()}-${Math.random()}`,
-          productId: p.productId ?? p.ProductID ?? "N/A",
-          name: p.ProductName || p.name || "Unnamed Product",
-          brand: p.ProductBrand || p.brand || "N/A",
-          gender: p.Gender || p.gender || "N/A",
-          price: price,
-          quantity: quantity,
-          category: p.Category || p.category || "N/A",
-          color: p.PrimaryColor || p.color || "N/A",
-          status: status,
-          description: p.Description || p.description || "",
-          imageUrl: p.Image || p.imageUrl || "",
-          lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
-        }
-      })
-      updateInventoryState(mappedUpdatedInventory)
+  //     const updatedInventoryFromDB = await fetch("http://localhost:5000/api/products").then((res) => res.json())
 
-      navigate("/orders")
-    } catch (error) {
-      console.error("Failed to update inventory in database:", error)
-      addNotification({
-        type: "alert",
-        title: "Inventory Update Failed",
-        description: `Failed to update inventory in database: ${error.message}`,
-        priority: "high",
-        icon: "alert",
-        link: "/inventory",
-      })
-    }
+  //     const mappedUpdatedInventory = updatedInventoryFromDB.map((p) => {
+  //       const price = Number.parseFloat(p.Price || p.price) || 0
+  //       const quantity = Number.parseInt(p.quantity || p.Quantity) || 0
+  //       const status = getItemStatus({ ...p, quantity })
+  //       return {
+  //         id: p.id ?? p._id ?? `prod-${Date.now()}-${Math.random()}`,
+  //         productId: p.productId ?? p.ProductID ?? "N/A",
+  //         name: p.ProductName || p.name || "Unnamed Product",
+  //         brand: p.ProductBrand || p.brand || "N/A",
+  //         gender: p.Gender || p.gender || "N/A",
+  //         price: price,
+  //         quantity: quantity,
+  //         category: p.Category || p.category || "N/A",
+  //         color: p.PrimaryColor || p.color || "N/A",
+  //         status: status,
+  //         description: p.Description || p.description || "",
+  //         imageUrl: p.Image || p.imageUrl || "",
+  //         lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
+  //       }
+  //     })
+  //     updateInventoryState(mappedUpdatedInventory)
+
+  //     navigate("/orders")
+  //   } catch (error) {
+  //     console.error("Failed to update inventory in database:", error)
+  //     addNotification({
+  //       type: "alert",
+  //       title: "Inventory Update Failed",
+  //       description: `Failed to update inventory in database: ${error.message}`,
+  //       priority: "high",
+  //       icon: "alert",
+  //       link: "/inventory",
+  //     })
+  //   }
+  // }
+
+
+const handleAddToOrder = async (item, quantity) => {
+  if (quantity > item.quantity) {
+    setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`);
+    return;
   }
+
+  const totalPrice = item.price * quantity;
+  const storedList = JSON.parse(localStorage.getItem("selectedProductFromInventory")) || [];
+  const existingIndex = storedList.findIndex((p) => p.id === item.id);
+
+  if (existingIndex !== -1) {
+    if (storedList[existingIndex].quantity + quantity > item.quantity) {
+      setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`);
+      return;
+    }
+    storedList[existingIndex].quantity += quantity;
+    storedList[existingIndex].totalPrice = storedList[existingIndex].quantity * item.price;
+  } else {
+    if (quantity > item.quantity) {
+      setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`);
+      return;
+    }
+    storedList.push({ ...item, quantity, totalPrice });
+  }
+
+  localStorage.setItem("selectedProductFromInventory", JSON.stringify(storedList));
+
+  const updatedInventory = inventory.map((product) => {
+    if (product.id === item.id) {
+      const newQty = product.quantity - quantity;  // Reduce quantity
+      return {
+        ...product,
+        quantity: newQty,
+        status: getItemStatus({ ...product, quantity: newQty }), // Recalculate status
+      };
+    }
+    return product;
+  });
+
+  // Update the inventory state and trigger a re-render
+  setInventory(updatedInventory);
+
+  try {
+    const response = await fetch(`http://localhost:5000/api/products/${item.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        quantity: item.quantity - quantity, // Update quantity in DB
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update stock in the database.");
+    }
+
+    const updatedInventoryFromDB = await fetch("http://localhost:5000/api/products").then((res) => res.json());
+    const mappedUpdatedInventory = updatedInventoryFromDB.map((p) => {
+      const price = Number.parseFloat(p.Price || p.price) || 0;
+      const quantity = Number.parseInt(p.quantity || p.Quantity) || 0;
+      const status = getItemStatus({ ...p, quantity });
+      return {
+        id: p.id ?? p._id ?? `prod-${Date.now()}-${Math.random()}`,
+        productId: p.productId ?? p.ProductID ?? "N/A",
+        name: p.ProductName || p.name || "Unnamed Product",
+        brand: p.ProductBrand || p.brand || "N/A",
+        gender: p.Gender || p.gender || "N/A",
+        price: price,
+        quantity: quantity,
+        category: p.Category || p.category || "N/A",
+        color: p.PrimaryColor || p.color || "N/A",
+        status: status,
+        description: p.Description || p.description || "",
+        imageUrl: p.Image || p.imageUrl || "",
+        lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
+      };
+    });
+
+    setInventory(mappedUpdatedInventory); // Update the inventory state with new data
+    navigate("/orders");
+  } catch (error) {
+    console.error("Failed to update inventory in database:", error);
+    addNotification({
+      type: "alert",
+      title: "Inventory Update Failed",
+      description: `Failed to update inventory in database: ${error.message}`,
+      priority: "high",
+      icon: "alert",
+      link: "/inventory",
+    });
+  }
+};
+
+
 
   const handleLogout = () => {
     clearInventory()

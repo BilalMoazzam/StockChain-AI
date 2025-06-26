@@ -143,6 +143,7 @@ export function InventoryDashboard({
       </span>
     );
   };
+  console.log("low stock items:", lowStockItems,"out of stock items ", outOfStockItems)
 
   return (
     <div className="" style={{ padding: "24px" }}>
@@ -506,7 +507,7 @@ export function InventoryDashboard({
                 <th className="thStyle">Stock</th>
                 <th className="thStyle">Price</th>
                 <th className="thStyle" style={{  paddingInline:"20px"  }}>Status</th>
-                <th className="thStyle" style={{  paddingInline:"50px"  }}>Actions</th>
+                <th className="thStyle" style={{ paddingBlock:"20px", paddingInline:"50px"  }}>Actions</th>
               </tr>
             </thead>
             <tbody className="">
