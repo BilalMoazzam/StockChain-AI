@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Header from "../layout/Header"
 import SupplyChainMetrics from "../supplyChain/SupplyChainMetrics"
-import SupplyChainNetwork from "../supplyChain/SupplyChainNetwork"
 import InventoryStockSummary from "../supplyChain/InventoryStockSummary"
 import "../styles/SupplyChainOverview.css"
 
@@ -21,7 +20,7 @@ const SupplyChainOverview = () => {
   // ✅ Helper function to determine stock status
   const getItemStatus = (product) => {
     if (!product.quantity || product.quantity === 0) return "Out of Stock"
-    if (product.quantity <= 20) return "Low Stock"
+    if (product.quantity <= 9) return "Low Stock" // Changed from 20 to 9
     return "In Stock"
   }
 
@@ -54,24 +53,23 @@ const SupplyChainOverview = () => {
 
         // ✅ Normalize product structure
         const mappedProducts = productData.map((p) => {
-  const quantity = typeof p.quantity === "number" ? p.quantity : parseInt(p.quantity) || 0
+          const quantity = typeof p.quantity === "number" ? p.quantity : Number.parseInt(p.quantity) || 0
 
-  return {
-    id: p.id ?? p._id ?? Math.random().toString(36).substr(2, 9),
-    name: p.name ?? p.ProductName ?? "Unnamed Product",
-    brand: p.brand ?? p.ProductBrand ?? "N/A",
-    gender: p.gender ?? p.Gender ?? "N/A",
-    price: typeof p.price === "number" ? p.price : Number(p.Price) || 0,
-    quantity,
-    category: p.category ?? p.Category ?? "N/A",
-    color: p.PrimaryColor ?? p.color ?? "N/A",
-    status: getItemStatus({ quantity }), // fixed
-    description: p.description ?? p.Description ?? "",
-    imageUrl: p.imageUrl || p.Image || "",
-    lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
-  }
-})
-
+          return {
+            id: p.id ?? p._id ?? Math.random().toString(36).substr(2, 9),
+            name: p.name ?? p.ProductName ?? "Unnamed Product",
+            brand: p.brand ?? p.ProductBrand ?? "N/A",
+            gender: p.gender ?? p.Gender ?? "N/A",
+            price: typeof p.price === "number" ? p.price : Number(p.Price) || 0,
+            quantity,
+            category: p.category ?? p.Category ?? "N/A",
+            color: p.PrimaryColor ?? p.color ?? "N/A",
+            status: getItemStatus({ quantity }), // fixed
+            description: p.description ?? p.Description ?? "",
+            imageUrl: p.imageUrl || p.Image || "",
+            lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
+          }
+        })
 
         setProducts(mappedProducts)
       } catch (err) {
@@ -120,13 +118,6 @@ const SupplyChainOverview = () => {
             <div className="section-wrapper">
               <h2 className="section-main-title">Key Performance Indicators</h2>
               <SupplyChainMetrics metrics={metrics} />
-            </div>
-
-            <div className="section-wrapper">
-              <h2 className="section-main-title">Conceptual Supply Chain Network</h2>
-              <div className="network-section-content">
-                <SupplyChainNetwork networkData={networkData} />
-              </div>
             </div>
 
             <div className="section-wrapper inventory-summary-section">

@@ -1,7 +1,6 @@
 "use client"
 
 import { Truck, ShoppingBag, Shield } from "lucide-react"
-// Removed: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const SupplyChainMetrics = ({ metrics }) => {
   const { deliveryRate, fulfillmentRate, blockchainVerification } = metrics

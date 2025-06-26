@@ -1,32 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Network,
   Blocks,
+  ArrowDownRight,
   Zap,
-  Lightbulb,
+  CheckCircle,
+  ArrowUpRight,
 } from "lucide-react";
 import "../styles/Dashboard.css";
 import { fetchInventory } from "../services/inventory";
 import { fetchOrders } from "../services/orders";
-// import MetricsCards from "../analytics/MetricsCards";
+import { fetchBlockchainTransactions } from "../services/blockchain";
 import SalesChart from "../analytics/SalesChart";
 import InventoryChart from "../analytics/InventoryChart";
-import CustomizableReport from "../analytics/CustomizableReport";
-import ExportReports from "../analytics/ExportReports";
-import AIPredictionTable from "../analytics/AIPredictionTable";
 import AIPredictionChart from "../analytics/AIPredictionChart";
 import StockStatusPieChart from "../analytics/StockStatusPieChart";
-import ProductSalesLookup from "../analytics/ProductSalesLookup";
+import { useInventory } from "../../context/InventoryContext";
 
-import { fetchBlockchainTransactions } from "../services/blockchain";
-
-export default function Dashboard() {
+const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dashboardData, setDashboardData] = useState({
     metrics: [],
     weeklyOperations: [],
@@ -37,6 +32,7 @@ export default function Dashboard() {
     loading: true,
     error: null,
   });
+
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [aiPredictions, setAiPredictions] = useState([]);
@@ -45,147 +41,204 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState("month");
   const [lastUpdated, setLastUpdated] = useState("");
+  const { inventory, fetchInventoryData, isLoading, error } = useInventory();
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      setDashboardData((d) => ({ ...d, loading: true, error: null }));
-      try {
-        // 1) fetch all three endpoints in parallel
-        const [inv, ord, chain] = await Promise.all([
-          fetchInventory(),
-          fetchOrders(),
-          fetchBlockchainTransactions(),
-        ]);
 
-        // 2) normalize inventory
-        const inventoryItems = inv.items || inv || [];
-        const LOW_STOCK_THRESHOLD = 9;
-        const statusOf = (qty) =>
-          isNaN(qty) || qty <= 0
-            ? "Out of Stock"
-            : qty <= LOW_STOCK_THRESHOLD
-            ? "Low Stock"
-            : "In Stock";
-        const lowStock = inventoryItems.filter(
-          (i) => statusOf(i.quantity) === "Low Stock"
-        );
-        const outStock = inventoryItems.filter(
-          (i) => statusOf(i.quantity) === "Out of Stock"
-        );
 
-        // 3) normalize orders
-        const orders = Array.isArray(ord) ? ord : ord.data || [];
-        const pending = orders.filter((o) => o.status === "Pending");
-        const completed = orders.filter((o) =>
-          ["Delivered", "Shipped"].includes(o.status)
-        );
 
-        // 4) normalize blockchain txs
-        const txs = Array.isArray(chain) ? chain : chain.data || [];
+ const loadDashboardData = async () => {
+  setDashboardData((prev) => ({ ...prev, loading: true, error: null }));
+  try {
+    // 1) fetch all three endpoints in parallel
+    const [inv, ord, chain] = await Promise.all([
+      fetchInventory(),
+      fetchOrders(),
+      fetchBlockchainTransactions(),
+    ]);
 
-        // 5) build metrics cards
-        const metrics = [
-          {
-            id: "p",
-            title: "Total Products",
-            value: inventoryItems.length,
-            link: "/inventory",
-            icon: <Blocks size={24} />,
-          },
-          {
-            id: "l",
-            title: "Low Stock",
-            value: lowStock.length,
-            link: "/inventory",
-            icon: <ArrowDownRight size={24} />,
-          },
-          {
-            id: "o",
-            title: "Out of Stock",
-            value: outStock.length,
-            link: "/inventory",
-            icon: <Zap size={24} />,
-          },
-          {
-            id: "t",
-            title: "Total Orders",
-            value: orders.length,
-            link: "/orders",
-            icon: <Lightbulb size={24} />,
-          },
-          {
-            id: "w",
-            title: "Pending Orders",
-            value: pending.length,
-            link: "/orders",
-            icon: <Network size={24} />,
-          },
-          {
-            id: "c",
-            title: "Completed Orders",
-            value: completed.length,
-            link: "/orders",
-            icon: <ArrowUpRight size={24} />,
-          },
-        ].map((c) => ({
-          ...c,
-          trend: "",
-          trendType: "up",
-          bgColor: "#1a1a1a",
-          textColor: "#fff",
-          trendColor: "#aaff00",
-        }));
-
-        // 6) simulated chart data
-        const weeklyOperations = [
-          { day: "Mon", value: 120 },
-          { day: "Tue", value: 135 },
-          { day: "Wed", value: 150 },
-          { day: "Thu", value: 130 },
-          { day: "Fri", value: 160 },
-          { day: "Sat", value: 90 },
-          { day: "Sun", value: 85 },
-        ];
-        const supplyChainPerformance = [
-          { label: "On-time Delivery", value: 94.8 },
-          { label: "Inventory Accuracy", value: 97.2 },
-          { label: "Order Fulfillment", value: 92.5 },
-          { label: "Supplier Performance", value: 95.2 },
-        ];
-        const totalQty = inventoryItems.reduce((s, i) => s + i.quantity, 0);
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-        const inventoryTrends = months.map((m) => ({
-          month: m,
-          value: Math.round(totalQty * (0.9 + Math.random() * 0.2)),
-        }));
-        const orderTrends = months.map((m) => ({
-          month: m,
-          value: Math.round((orders.length * (0.8 + Math.random() * 0.4)) / 6),
-        }));
-
-        // 7) commit everything
-        setDashboardData({
-          metrics,
-          weeklyOperations,
-          supplyChainPerformance,
-          inventoryTrends,
-          orderManagement: orderTrends,
-          latestBlockchainTransactions: txs,
-          loading: false,
-          error: null,
-        });
-      } catch (err) {
-        console.error("Dashboard data loading error:", err);
-        setDashboardData((d) => ({
-          ...d,
-          loading: false,
-          error: err.message || "Could not load dashboard",
-        }));
-      }
+    // 2) normalize inventory
+    const inventoryItems = inv.items || inv || [];
+    const LOW_STOCK_THRESHOLD = 9; // Ensure this is the correct threshold for low stock
+    const statusOf = (qty) => {
+      if (isNaN(qty) || qty <= 0) return "Out of Stock"; // Out of stock if quantity is 0 or negative
+      if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock"; // Low stock if less than or equal to 9
+      return "In Stock"; // Otherwise, it's in stock
     };
 
-    loadDashboardData();
-  }, []);
+    // 3) filter based on stock status
+    const lowStock = inventoryItems.filter((i) => statusOf(i.quantity) === "Low Stock");
+    const outStock = inventoryItems.filter((i) => statusOf(i.quantity) === "Out of Stock");
+
+    // 4) normalize orders
+    const orders = Array.isArray(ord) ? ord : ord.data || [];
+    const pending = orders.filter((o) => o.status === "Pending");
+    const completed = orders.filter((o) => ["Delivered", "Shipped"].includes(o.status));
+
+    // 5) normalize blockchain transactions and count accepted ones
+    const txs = Array.isArray(chain) ? chain : chain.data || [];
+    const acceptedBlockchainTransactions = txs.filter(
+      (tx) => tx.status === "Confirmed" || tx.status === "Accepted"
+    ).length;
+
+    // 6) build metrics cards
+    const metrics = [
+      {
+        id: "total-products",
+        title: "Total Products",
+        value: inventoryItems.length,
+        link: "/inventory",
+        icon: <Blocks size={24} />,
+        bgColor: "#e0f2fe", // Light blue
+        textColor: "#0c4a6e", // Dark blue text
+        iconBg: "#7dd3fc", // Medium blue for icon background
+        iconColor: "#0ea5e9", // Blue icon
+      },
+      {
+        id: "low-stock",
+        title: "Low Stock",
+        value: lowStock.length, // Correctly show the count of low stock
+        link: "/inventory",
+        icon: <ArrowDownRight size={24} />,
+        bgColor: "#fffbeb", // Light yellow
+        textColor: "#9a3412", // Dark orange text
+        iconBg: "#fcd34d", // Medium yellow for icon background
+        iconColor: "#f59e0b", // Orange icon
+      },
+      {
+        id: "out-of-stock",
+        title: "Out of Stock",
+        value: outStock.length, // Correctly show the count of out of stock
+        link: "/inventory",
+        icon: <Zap size={24} />,
+        bgColor: "#fee2e2", // Light red
+        textColor: "#991b1b", // Dark red text
+        iconBg: "#fca5a5", // Medium red for icon background
+        iconColor: "#ef4444", // Red icon
+      },
+      {
+        id: "accepted-blockchain-tx",
+        title: "Accepted Blockchain Tx",
+        value: acceptedBlockchainTransactions,
+        link: "/blockchain",
+        icon: <CheckCircle size={24} />,
+        bgColor: "#dcfce7", // Light green
+        textColor: "#166534", // Dark green text
+        iconBg: "#86efad", // Medium green for icon background
+        iconColor: "#22c55e", // Green icon
+      },
+    ];
+
+    // 7) Simulated chart data (unchanged)
+    const weeklyOperations = [
+      { day: "Mon", value: Math.floor(Math.random() * 50) + 100 },
+      { day: "Tue", value: Math.floor(Math.random() * 50) + 100 },
+      { day: "Wed", value: Math.floor(Math.random() * 50) + 100 },
+      { day: "Thu", value: Math.floor(Math.random() * 50) + 100 },
+      { day: "Fri", value: Math.floor(Math.random() * 50) + 100 },
+      { day: "Sat", value: Math.floor(Math.random() * 50) + 50 },
+      { day: "Sun", value: Math.floor(Math.random() * 50) + 40 },
+    ];
+
+    const supplyChainPerformance = [
+      { label: "On-time Delivery", value: 94.8 },
+      { label: "Inventory Accuracy", value: 97.2 },
+      { label: "Order Fulfillment", value: 92.5 },
+      { label: "Supplier Performance", value: 95.2 },
+    ];
+
+    const totalCurrentInventoryQty = inventoryItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
+    const inventoryTrends = [
+      {
+        month: "Jan",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+      {
+        month: "Feb",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+      {
+        month: "Mar",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+      {
+        month: "Apr",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+      {
+        month: "May",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+      {
+        month: "Jun",
+        value: totalCurrentInventoryQty * (0.9 + Math.random() * 0.2),
+      },
+    ].map((d) => ({ ...d, value: Math.round(d.value) }));
+
+    const orderTrends = [
+      {
+        month: "Jan",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+      {
+        month: "Feb",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+      {
+        month: "Mar",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+      {
+        month: "Apr",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+      {
+        month: "May",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+      {
+        month: "Jun",
+        value: (orders.length * (0.8 + Math.random() * 0.4)) / 6,
+      },
+    ].map((d) => ({ ...d, value: Math.round(d.value) }));
+
+    const latestBlockchainTransactions = txs.map((tx) => ({
+      // Ensure consistent structure for display
+      hash: tx.hash || tx._id || "N/A",
+      type: tx.type || "N/A",
+      timestamp: tx.timestamp || new Date().toLocaleString(),
+      status: tx.status || "N/A",
+      quantity: tx.quantity || 0,
+      from: tx.from || "N/A",
+      to: tx.to || "N/A",
+    }));
+
+    setDashboardData({
+      metrics,
+      weeklyOperations,
+      supplyChainPerformance,
+      inventoryTrends,
+      orderManagement: orderTrends,
+      latestBlockchainTransactions,
+      loading: false,
+      error: null,
+    });
+  } catch (err) {
+    console.error("Dashboard data loading error:", err);
+    setDashboardData((prev) => ({
+      ...prev,
+      loading: false,
+      error: err.message || "Failed to load dashboard data",
+    }));
+  }
+};
+  useEffect(() => {
+    if (location.pathname === "/dashboard" || location.pathname === "/") {
+      loadDashboardData();
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -194,7 +247,7 @@ export default function Dashboard() {
   const fetchAnalyticsData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5001/predict-all");
+      const res = await fetch("http://localhost:5000/api/products");
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       console.log("Raw AI data:", data);
@@ -266,40 +319,6 @@ export default function Dashboard() {
     }
   };
 
-  // helper to compute bar heights
-  const getBarHeight = (val, max) => (val / max) * 100;
-
-  // helper to build an SVG polyline for line charts
-  const getLinePath = (data, w, h, max) => {
-    if (data.length < 2) return "";
-    return (
-      "M" +
-      data
-        .map((d, i) => {
-          const x = (i / (data.length - 1)) * w;
-          const y = h - (d.value / max) * h;
-          return `${x},${y}`;
-        })
-        .join(" L")
-    );
-  };
-
-  // helper to build an SVG path for area charts
-  const getAreaPath = (data, w, h, max) => {
-    if (data.length < 2) return "";
-    const pts = data.map((d, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - (d.value / max) * h;
-      return `${x},${y}`;
-    });
-    return `M${pts.join(" L")} L${w},${h} L0,${h} Z`;
-  };
-
-  const maxWeekly = Math.max(
-    ...dashboardData.weeklyOperations.map((d) => d.value)
-  );
-  const maxInv = Math.max(...dashboardData.inventoryTrends.map((d) => d.value));
-  const maxOrd = Math.max(...dashboardData.orderManagement.map((d) => d.value));
   const generateSalesData = (range, total) => {
     const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
     const avg = total / pts;
@@ -308,6 +327,7 @@ export default function Dashboard() {
       value: Math.round(avg * (0.8 + Math.random() * 0.4)),
     }));
   };
+
   const generateInventoryData = (range, products) => {
     const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
     const totalQty = products.reduce(
@@ -321,9 +341,35 @@ export default function Dashboard() {
     }));
   };
 
+  if (dashboardData.loading) {
+    return (
+      <div className="dashboard-loading-container">
+        <div className="dashboard-spinner" />
+        <p>Loading dashboard data...</p>
+      </div>
+    );
+  }
+
+  if (dashboardData.error) {
+    return (
+      <div className="dashboard-container">
+        <div className="dashboard-error-message">
+          <h3>Error Loading Dashboard</h3>
+          <p>{dashboardData.error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="dashboard-retry-btn"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
-      {/* Metric Cards */}
+      {/* Top Metric Cards */}
       <div className="metric-cards-grid">
         {dashboardData.metrics.map((metric) => (
           <div
@@ -333,23 +379,25 @@ export default function Dashboard() {
             onClick={() => navigate(metric.link)}
           >
             <div className="metric-card-header">
-              <span className="metric-title">{metric.title}</span>
-              <div className="metric-icon-wrapper">{metric.icon}</div>
-            </div>
-            <div className="metric-value">{metric.value}</div>
-            {metric.trend && (
-              <div
-                className="metric-trend"
-                style={{ color: metric.trendColor }}
+              <span
+                className="metric-title"
+                style={{ color: metric.textColor }}
               >
-                {metric.trendType === "up" ? (
-                  <ArrowUpRight size={16} />
-                ) : (
-                  <ArrowDownRight size={16} />
-                )}
-                {metric.trend} vs last month
+                {metric.title}
+              </span>
+              <div
+                className="metric-icon-wrapper"
+                style={{
+                  backgroundColor: metric.iconBg,
+                  color: metric.iconColor,
+                }}
+              >
+                {metric.icon}
               </div>
-            )}
+            </div>
+            <div className="metric-value" style={{ color: metric.textColor }}>
+              {metric.value}
+            </div>
           </div>
         ))}
       </div>
@@ -357,7 +405,7 @@ export default function Dashboard() {
       <div className="dashboard-content-grid">
         {/* Weekly Operations */}
         <div className="section">
-          <h3>Sales & Inventory Trends</h3>
+          <h3>Sales Trends</h3>
           <div className="charts-grid">
             <SalesChart data={salesData} dateRange={dateRange} />
           </div>
@@ -365,116 +413,25 @@ export default function Dashboard() {
 
         {/* Supply Chain Performance */}
         <div className="section">
-          <h3>Sales & Inventory Trends</h3>
+          <h3>Inventory Trends</h3>
           <div className="charts-grid">
             <InventoryChart data={inventoryData} dateRange={dateRange} />
           </div>
         </div>
 
-         <div className="section">
-          <h3>AI Inventory Prediction Overview</h3>
+        <div className="section">
+          <h3>AI Inventory Monitoring</h3>
           <div className="charts-grid">
             <AIPredictionChart data={aiPredictionChartData} />
-            
           </div>
         </div>
 
         <div className="section">
           <h3>AI Inventory Prediction Overview</h3>
           <div className="charts-grid">
-           
             <StockStatusPieChart data={stockStatusChartData} />
           </div>
         </div>
-
-        {/* <div className="section">
-          <h3>Detailed AI Inventory Insights (All Products)</h3>
-          <AIPredictionTable predictions={aiPredictions} />
-        </div> */}
-
-        {/* Inventory Trends */}
-        {/* <div
-          className="dashboard-card inventory-trends-card"
-          onClick={() => navigate("/inventory")}
-        >
-          <h3 className="card-title">Inventory Trends</h3>
-          <div className="chart-container">
-            <svg viewBox="0 0 400 200" className="line-chart">
-              <polyline
-                fill="none"
-                stroke="#FFD700"
-                strokeWidth="2"
-                points={getLinePath(
-                  dashboardData.inventoryTrends,
-                  400,
-                  200,
-                  maxInv
-                )}
-              />
-              {[0, maxInv / 2, maxInv].map((v, i) => (
-                <text
-                  key={i}
-                  x="0"
-                  y={200 - (v / maxInv) * 200 + 5}
-                  textAnchor="end"
-                  className="chart-label y-axis-label"
-                >
-                  {Math.round(v)}
-                </text>
-              ))}
-              {dashboardData.inventoryTrends.map((d, i) => (
-                <text
-                  key={i}
-                  x={(i / (dashboardData.inventoryTrends.length - 1)) * 400}
-                  y="215"
-                  textAnchor="middle"
-                  className="chart-label x-axis-label"
-                >
-                  {d.month}
-                </text>
-              ))}
-            </svg>
-          </div>
-        </div> */}
-
-        {/* Order Management */}
-        {/* <div
-          className="dashboard-card order-management-card"
-          onClick={() => navigate("/orders")}
-        >
-          <h3 className="card-title">Order Management</h3>
-          <div className="chart-container">
-            <svg viewBox="0 0 400 200" className="area-chart">
-              <path
-                fill="#FFD700"
-                opacity="0.6"
-                d={getAreaPath(dashboardData.orderManagement, 400, 200, maxOrd)}
-              />
-              {[0, maxOrd / 2, maxOrd].map((v, i) => (
-                <text
-                  key={i}
-                  x="0"
-                  y={200 - (v / maxOrd) * 200 + 5}
-                  textAnchor="end"
-                  className="chart-label y-axis-label"
-                >
-                  {Math.round(v)}
-                </text>
-              ))}
-              {dashboardData.orderManagement.map((d, i) => (
-                <text
-                  key={i}
-                  x={(i / (dashboardData.orderManagement.length - 1)) * 400}
-                  y="215"
-                  textAnchor="middle"
-                  className="chart-label x-axis-label"
-                >
-                  {d.month}
-                </text>
-              ))}
-            </svg>
-          </div>
-        </div> */}
 
         {/* Blockchain Transactions */}
         <div className="dashboard-card blockchain-transactions-card">
@@ -503,7 +460,7 @@ export default function Dashboard() {
                     .reverse()
                     .map((tx, idx) => (
                       <tr key={idx} onClick={() => navigate("/blockchain")}>
-                        <td>{tx.id || tx._id || "N/A"}</td>
+                        <td>{tx.hash || tx._id || "N/A"}</td>
                         <td>{tx.name || "N/A"}</td>
                         <td>Rs. {tx.price || "N/A"}</td>
                         <td>
@@ -528,4 +485,6 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;

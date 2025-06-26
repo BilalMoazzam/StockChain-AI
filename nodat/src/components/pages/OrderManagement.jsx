@@ -1,44 +1,104 @@
-"use client";
+"use client"
+import { useContext, useEffect } from "react"
+import { useState, useCallback } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
+import { OrderDashboard } from "../orders/OrderDashboard"
+import { Modal } from "../ui-components" // Assuming Modal is a shadcn/ui component or similar
+import { addNotification } from "../../utils/notificationService" // Import notification service
+import { useInventory } from "../../context/InventoryContext" // Import useInventory context
+import Header from "../layout/Header" // Assuming Header component path
+import "../styles/OrderManagement.css" // Import the new CSS
+import { UserContext } from "../../context/UserContext"
 
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import Header from "../layout/Header";
-import { OrderDashboard } from "../orders/OrderDashboard";
-import { Modal } from "../ui-components";
-import "../styles/OrderManagement.css";
+const OrderManagement = ({ inventory: initialInventory = [], customers: initialCustomers = [] }) => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { inventory, updateProductQuantityInContext, fetchInventoryData } = useInventory() // Get inventory from context
+  const { username } = useContext(UserContext) // Get username from UserContext
 
-const OrderManagement = ({
-  inventory: initialInventory = [],
-  customers: initialCustomers = [],
-}) => {
-  const location = useLocation();
-  const { selectedProduct: locationSelectedProduct } = location.state || {};
-
-  const [orders, setOrders] = useState([]);
-  const [inventory, setInventory] = useState(initialInventory);
-  const [customers, setCustomers] = useState(initialCustomers);
+  const [orders, setOrders] = useState([])
+  const [customers, setCustomers] = useState(initialCustomers)
   const [selectedProducts, setSelectedProducts] = useState(() => {
-    const stored = localStorage.getItem("selectedProducts");
-    return stored ? JSON.parse(stored) : [];
-  });
-
-  const [showOrderForm, setShowOrderForm] = useState(false);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [editingOrder, setEditingOrder] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-
-  useEffect(() => {
-    if (locationSelectedProduct) {
-      const alreadyExists = selectedProducts.some(
-        (p) => p.sku === locationSelectedProduct.sku
-      );
-      if (!alreadyExists) {
-        const updated = [...selectedProducts, locationSelectedProduct];
-        setSelectedProducts(updated);
-        localStorage.setItem("selectedProducts", JSON.stringify(updated));
+    const stored = localStorage.getItem("selectedProductFromInventory")
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        // Update customerName for existing products in draft if it's falsy or default placeholders
+        return parsed.map((p) => ({
+          ...p,
+          customerName:
+            !p.customerName || p.customerName === "N/A" || p.customerName === "New Customer"
+              ? username || "New Customer"
+              : p.customerName,
+          customer:
+            !p.customer || p.customer === "N/A" || p.customer === "New Customer"
+              ? username || "New Customer"
+              : p.customer,
+        }))
+      } catch (e) {
+        console.error("Failed to parse stored selectedProductFromInventory:", e)
+        localStorage.removeItem("selectedProductFromInventory")
+        return []
       }
     }
-  }, [locationSelectedProduct]);
+    return []
+  })
+
+  const [showOrderForm, setShowOrderForm] = useState(false)
+  const [showOrderDetails, setShowOrderDetails] = useState(false)
+  const [editingOrder, setEditingOrder] = useState(null)
+  const [selectedOrder, setSelectedOrder] = useState(null)
+
+  // This useEffect is for handling products coming from InventoryManagement via URL/localStorage
+  // It ensures new products from inventory are added to the existing draft.
+  useEffect(() => {
+    const productsFromInventory = JSON.parse(localStorage.getItem("selectedProductFromInventory"))
+    if (productsFromInventory && productsFromInventory.length > 0) {
+      setSelectedProducts((prev) => {
+        const newProducts = productsFromInventory.filter((pfi) => !prev.some((sp) => sp.id === pfi.id))
+        // Ensure new products also get the correct customerName
+        const updatedNewProducts = newProducts.map((p) => ({
+          ...p,
+          customerName:
+            !p.customerName || p.customerName === "N/A" || p.customerName === "New Customer"
+              ? username || "New Customer"
+              : p.customerName,
+          customer:
+            !p.customer || p.customer === "N/A" || p.customer === "New Customer"
+              ? username || "New Customer"
+              : p.customer,
+        }))
+        return [...prev, ...updatedNewProducts]
+      })
+    }
+  }, [location.search, username]) // Add username to dependency array
+
+  // New useEffect to ensure customerName is updated when username becomes available
+  useEffect(() => {
+    if (username) {
+      // Only proceed if username is available
+      setSelectedProducts((prev) => {
+        let changed = false
+        const updated = prev.map((p) => {
+          // Check for falsy values, "N/A", or "New Customer"
+          if (!p.customerName || p.customerName === "N/A" || p.customerName === "New Customer") {
+            changed = true
+            return {
+              ...p,
+              customerName: username,
+              customer: username,
+            }
+          }
+          return p
+        })
+        if (changed) {
+          localStorage.setItem("selectedProductFromInventory", JSON.stringify(updated))
+          return updated
+        }
+        return prev // No change, return previous state to avoid unnecessary re-renders
+      })
+    }
+  }, [username]) // Depend only on username.
 
   const handleCreateOrderFromProduct = (product) => {
     const newOrder = {
@@ -46,28 +106,158 @@ const OrderManagement = ({
       orderNumber: `#ORD-${String(orders.length + 1).padStart(3, "0")}`,
       orderDate: new Date().toISOString().split("T")[0],
       orderDetails: product.name,
-      customer: product.id,
+      customer: username || product.customerName || "New Customer", // Use username from context if available
+      customerName: username || product.customerName || "New Customer", // Use username from context if available
+      customerEmail: product.customerEmail || "N/A",
       items: [product.sku || "N/A"],
-      total: product.price,
-      status: product.status,
+      total: product.totalPrice || product.price,
+      status: "Pending",
       paymentStatus: "Pending",
       date: new Date().toLocaleDateString(),
-    };
+    }
 
-    setOrders((prev) => [newOrder, ...prev]);
-  };
+    setOrders((prev) => [newOrder, ...prev])
+    addNotification({
+      type: "order",
+      title: "New Order Created",
+      description: `Order ${newOrder.orderNumber} for ${newOrder.customer} has been created.`,
+      priority: "normal",
+      icon: "shopping-cart",
+      link: `/orders/${newOrder.id}`,
+    })
+  }
 
-  const handleClearSelected = () => {
-    setSelectedProducts([]);
-    localStorage.removeItem("selectedProducts");
-  };
+  const handleClearSelected = useCallback(async () => {
+    for (const productToRestore of selectedProducts) {
+      const currentInventoryItem = inventory.find((item) => item.id === productToRestore.id)
+      if (currentInventoryItem) {
+        const newQuantity = currentInventoryItem.quantity + productToRestore.quantity
+        updateProductQuantityInContext(productToRestore.id, newQuantity) // Update local context first
+
+        try {
+          await fetch(`http://localhost:5000/api/products/${productToRestore.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ quantity: newQuantity }), // Send the new quantity to backend
+          })
+          console.log(`Backend updated for ${productToRestore.name}: new quantity ${newQuantity}`)
+        } catch (error) {
+          console.error(`Failed to update product ${productToRestore.id} in backend:`, error)
+          addNotification({
+            type: "alert",
+            title: "Inventory Update Failed",
+            description: `Failed to restore stock for "${productToRestore.name}": ${error.message}`,
+            priority: "high",
+            icon: "alert",
+            link: "/inventory",
+          })
+        }
+      }
+    }
+    setSelectedProducts([])
+    localStorage.removeItem("selectedProductFromInventory") // Clear the specific localStorage key ONLY here
+    addNotification({
+      type: "order",
+      title: "Order Draft Cleared",
+      description: "All selected products have been removed from the order draft and stock restored.",
+      priority: "normal",
+      icon: "shopping-cart",
+      link: "/orders",
+    })
+    fetchInventoryData(1, 20, false) // Re-fetch inventory to ensure UI is updated
+  }, [selectedProducts, inventory, updateProductQuantityInContext, fetchInventoryData, username])
+
+  const handleRemoveProductFromDraft = useCallback(
+    async (productToRemove) => {
+      const remaining = selectedProducts.filter((p) => (p.id || p.sku) !== (productToRemove.id || productToRemove.sku))
+      setSelectedProducts(remaining)
+      localStorage.setItem("selectedProductFromInventory", JSON.stringify(remaining)) // Persist remaining items
+
+      const currentInventoryItem = inventory.find((item) => item.id === productToRemove.id)
+      if (currentInventoryItem) {
+        const newQuantity = currentInventoryItem.quantity + productToRemove.quantity
+        updateProductQuantityInContext(productToRemove.id, newQuantity) // Update local context
+
+        try {
+          await fetch(`http://localhost:5000/api/products/${productToRemove.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ quantity: newQuantity }), // Send the new quantity to backend
+          })
+          console.log(`Backend updated for ${productToRemove.name}: new quantity ${newQuantity}`)
+        } catch (error) {
+          console.error(`Failed to update product ${productToRemove.id} in backend:`, error)
+          addNotification({
+            type: "alert",
+            title: "Inventory Update Failed",
+            description: `Failed to restore stock for "${productToRemove.name}": ${error.message}`,
+            priority: "high",
+            icon: "alert",
+            link: "/inventory",
+          })
+        }
+      }
+
+      addNotification({
+        type: "order",
+        title: "Product Removed from Order Draft",
+        description: `"${productToRemove.name}" removed from order draft. Stock restored.`,
+        priority: "normal",
+        icon: "x-circle",
+        link: "/orders",
+      })
+      fetchInventoryData(1, 20, false) // Re-fetch inventory to ensure UI is updated
+    },
+    [selectedProducts, inventory, updateProductQuantityInContext, fetchInventoryData, username],
+  )
+
   const handleBuyNow = (product) => {
-    console.log("Buying product:", product);
-    // Add actual logic: e.g., create order, show toast, navigate, etc.
-  };
+    addNotification({
+      type: "order",
+      title: "Product Sent to Blockchain",
+      description: `Product "${product.name}" sent for blockchain transaction.`,
+      priority: "normal",
+      icon: "truck",
+      link: "/blockchain",
+    })
+    navigate("/blockchain-transaction", { state: { product } })
+  }
+
+  const handleUpdateOrderStatus = useCallback((id, status) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === id) {
+          const updatedOrder = {
+            ...o,
+            status,
+            ...(status === "Delivered" && {
+              deliveredDate: new Date().toISOString().split("T")[0],
+            }),
+            ...(status === "Cancelled" && {
+              cancelledDate: new Date().toISOString().split("T")[0],
+            }),
+          }
+          addNotification({
+            type: "order",
+            title: `Order ${status}`,
+            description: `Order ${o.orderNumber} status changed to ${status}.`,
+            priority: status === "Cancelled" ? "high" : "normal",
+            icon: status === "Delivered" ? "check" : "truck",
+            link: `/orders/${o.id}`,
+          })
+          return updatedOrder
+        }
+        return o
+      }),
+    )
+  }, [])
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <Header
         title="Order Management"
         breadcrumbs={[
@@ -75,58 +265,51 @@ const OrderManagement = ({
           { text: "Order Management", active: true },
         ]}
       />
-      <div className="order-management">
-        <main className="order-main-content">
-          <OrderDashboard
-            orders={orders}
-            customers={customers}
-            inventory={inventory}
-            handleBuyNow={handleBuyNow}
-            selectedProducts={selectedProducts}
-            setSelectedProducts={setSelectedProducts}
-            onCreateOrder={handleCreateOrderFromProduct}
-            onEditOrder={(o) => setEditingOrder(o)}
-            onDeleteOrder={(id) =>
-              setOrders((prev) => prev.filter((o) => o.id !== id))
-            }
-            onViewOrder={(o) => {
-              setSelectedOrder(o);
-              setShowOrderDetails(true);
-            }}
-            onUpdateOrderStatus={(id, status) => {
-              setOrders((prev) =>
-                prev.map((o) =>
-                  o.id === id
-                    ? {
-                        ...o,
-                        status,
-                        ...(status === "Delivered" && {
-                          deliveredDate: new Date().toISOString().split("T")[0],
-                        }),
-                        ...(status === "Cancelled" && {
-                          cancelledDate: new Date().toISOString().split("T")[0],
-                        }),
-                      }
-                    : o
-                )
-              );
-            }}
-          />
-        </main>
+      <main className="p-6">
+        <OrderDashboard
+          orders={orders}
+          customers={customers}
+          selectedProducts={selectedProducts}
+          setSelectedProducts={setSelectedProducts}
+          onCreateOrder={handleCreateOrderFromProduct}
+          onEditOrder={(o) => setEditingOrder(o)}
+          onDeleteOrder={(id) => {
+            setOrders((prev) => prev.filter((o) => o.id !== id))
+            addNotification({
+              type: "order",
+              title: "Order Deleted",
+              description: `Order with ID: ${id} has been deleted.`,
+              priority: "medium",
+              icon: "trash",
+              link: "/orders",
+            })
+          }}
+          onViewOrder={(o) => {
+            setSelectedOrder(o)
+            setShowOrderDetails(true)
+          }}
+          onUpdateOrderStatus={handleUpdateOrderStatus}
+          onClearSelected={handleClearSelected} // Pass the new handler
+          onRemoveProductFromDraft={handleRemoveProductFromDraft} // Pass the new handler for individual removal
+          onUpdateInventoryQuantity={updateProductQuantityInContext} // Pass the context function
+        />
+      </main>
 
-        {showOrderDetails && selectedOrder && (
-          <Modal
-            isOpen={showOrderDetails}
-            onClose={() => setShowOrderDetails(false)}
-            title="Order Details"
-            size="xlarge"
-          >
-            {/* Optional: Render order details */}
-          </Modal>
-        )}
-      </div>
+      {showOrderDetails && selectedOrder && (
+        <Modal isOpen={showOrderDetails} onClose={() => setShowOrderDetails(false)} title="Order Details" size="xlarge">
+          {/* Optional: Render order details */}
+          <div className="p-4">
+            <h3 className="text-lg font-semibold mb-2">{selectedOrder.orderNumber}</h3>
+            <p>Customer: {selectedOrder.customer || "Guest"} </p>
+            <p>Total: Rs. {selectedOrder.total}</p>
+            <p>Status: {selectedOrder.status}</p>
+            <p>Date: {selectedOrder.orderDate}</p>
+            {/* Add more details as needed */}
+          </div>
+        </Modal>
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default OrderManagement;
+export default OrderManagement

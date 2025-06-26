@@ -1,170 +1,127 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useCallback } from "react";
-import Header from "../layout/Header"; // Assuming Header is in layout folder
-import { InventoryDashboard } from "../inventory/InventoryDashboard";
-import { ProductDetails } from "../inventory/product-details";
-import { ProductForm } from "../inventory/product-form";
-import { Modal } from "../ui-components"; // Assuming Modal is a shadcn/ui component or similar
-import { addNotification } from "../../utils/notificationService"; // Import notification service
-import { useNavigate } from "react-router-dom"; // Use useNavigate for React Router consistency
+import { useState, useEffect, useCallback } from "react"
+import { useInventory } from "../../context/InventoryContext"
+import Header from "../layout/Header"
+import { InventoryDashboard } from "../inventory/InventoryDashboard"
+import { ProductDetails } from "../inventory/product-details" // Assuming this path
+import { ProductForm } from "../inventory/product-form" // Assuming this path
+import { Modal } from "../ui-components" // Assuming this path
+import { addNotification } from "../../utils/notificationService"
+import { useNavigate, useLocation } from "react-router-dom"
 
 const InventoryManagement = () => {
-  const [inventory, setInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { inventory, setInventory, clearInventory } = useInventory()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [visibleProducts, setVisibleProducts] = useState(30)
+  const [showProductForm, setShowProductForm] = useState(false)
+  const [showProductDetails, setShowProductDetails] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [orderSuccessMsg, setOrderSuccessMsg] = useState("")
 
-  const [showProductForm, setShowProductForm] = useState(false);
-  const [showProductDetails, setShowProductDetails] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const navigate = useNavigate();
+  // Helper to determine item status
+  const getItemStatus = useCallback((item) => {
+    const qty = Number(item.quantity)
+    const LOW_STOCK_THRESHOLD = 9
 
-  // Define the getItemStatus function
-  const getItemStatus = (item) => {
-    const qty = Number(item.quantity);
-    const LOW_STOCK_THRESHOLD = 9; // Define the threshold for low stock
-
-    if (isNaN(qty) || qty <= 0) return "Out of Stock";
-    if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock";
-
-    return "In Stock";
-  };
-
-  // Define the updateStatuses function
-  const updateStatuses = (inventoryData) => {
-    return inventoryData.map((item) => ({
-      ...item,
-      status: getItemStatus(item), // Recalculate the status based on the quantity
-    }));
-  };
+    if (isNaN(qty) || qty <= 0) return "Out of Stock"
+    if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock"
+    return "In Stock"
+  }, [])
 
   // Fetch data and set up initial inventory
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("http://localhost:5000/api/products");
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = await res.json();
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("http://localhost:5000/api/products")
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+      const data = await res.json()
+      console.log("Fetched raw inventory data:", data) // Log raw data for inspection
 
-        const mapped = data.map((p) => ({
-          id: p.id ?? p._id,
-          productId: p.productId ?? "N/A",
-          name: p.name ?? "Unnamed Product",
-          brand: p.brand ?? "N/A",
-          gender: p.gender ?? "N/A",
-          price: typeof p.price === "number" ? p.price : 0,
-          quantity: typeof p.quantity === "number" ? p.quantity : 0,
-          category: p.category ?? "N/A",
-          color: p.PrimaryColor ?? p.color ?? "N/A",
-          status: getItemStatus(p), // Set initial status based on quantity
-          description: p.description ?? "",
-          imageUrl: p.imageUrl || "",
-          lastUpdated: p.updatedAt
-            ? new Date(p.updatedAt).toLocaleDateString()
-            : "N/A",
-        }));
-        setInventory(mapped);
-        localStorage.setItem("persistedInventory", JSON.stringify(mapped)); // Persist initial data
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to load products:", error);
-        setError("Failed to load inventory data.");
-        setLoading(false);
-        addNotification({
-          type: "alert",
-          title: "Inventory Load Failed",
-          description: `Failed to load inventory data: ${error.message}`,
-          priority: "high",
-          icon: "alert",
-          link: "/inventory",
-        });
+      if (!Array.isArray(data) || data.length === 0) {
+        setError("No inventory data found.")
+        setInventory([])
+        localStorage.setItem("persistedInventory", JSON.stringify([]))
+        setLoading(false)
+        return
       }
-    };
 
-    fetchData();
-  }, []); // Removed getItemStatus dependency here to avoid infinite loop
+      const mapped = data.map((p) => {
+        // Log each product object to see its exact keys
+        console.log("Mapping product:", p)
 
-  useEffect(() => {
-    const prevInventory =
-      JSON.parse(localStorage.getItem("persistedInventory")) || [];
-    inventory.forEach((currentItem) => {
-      const prevItem = prevInventory.find((item) => item.id === currentItem.id);
-      const currentStatus = getItemStatus(currentItem);
-      const prevStatus = prevItem ? getItemStatus(prevItem) : null;
+        // Ensure price and quantity are parsed as numbers, with robust fallbacks
+        const price = Number.parseFloat(p.Price || p.price) || 0
+        const quantity = Number.parseInt(p.quantity || p.Quantity) || 0 // Added p.Quantity as a fallback
 
-      if (prevStatus && currentStatus !== prevStatus) {
-        if (currentStatus === "Low Stock") {
-          addNotification({
-            type: "alert",
-            title: "Low Stock Alert",
-            description: `Item "${currentItem.name}" (ID: ${currentItem.id}) is now low in stock (${currentItem.quantity} units).`,
-            priority: "high",
-            icon: "alert",
-            link: "/inventory",
-          });
-        } else if (currentStatus === "Out of Stock") {
-          addNotification({
-            type: "alert",
-            title: "Out of Stock Alert",
-            description: `Item "${currentItem.name}" (ID: ${currentItem.id}) is now out of stock.`,
-            priority: "high",
-            icon: "alert",
-            link: "/inventory",
-          });
-        } else if (
-          currentStatus === "In Stock" &&
-          (prevStatus === "Low Stock" || prevStatus === "Out of Stock")
-        ) {
-          addNotification({
-            type: "inventory",
-            title: "Inventory Restocked",
-            description: `Item "${currentItem.name}" (ID: ${currentItem.id}) has been restocked to ${currentItem.quantity} units.`,
-            priority: "normal",
-            icon: "package",
-            link: "/inventory",
-          });
+        const status = getItemStatus({ ...p, quantity }) // Recalculate status based on parsed quantity
+        return {
+          id: p.id ?? p._id ?? `prod-${Date.now()}-${Math.random()}`, // More robust ID fallback
+          productId: p.productId ?? p.ProductID ?? "N/A", // Added ProductID as a fallback
+          name: p.ProductName || p.name || "Unnamed Product",
+          brand: p.ProductBrand || p.brand || "N/A",
+          gender: p.Gender || p.gender || "N/A",
+          price: price,
+          quantity: quantity,
+          category: p.Category || p.category || "N/A",
+          color: p.PrimaryColor || p.color || "N/A",
+          status: status, // Store the recalculated status
+          description: p.Description || p.description || "",
+          imageUrl: p.Image || p.imageUrl || "",
+          lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
         }
-      }
-    });
-    localStorage.setItem("persistedInventory", JSON.stringify(inventory)); // Save updated inventory to localStorage
-  }, [inventory]); // Keep inventory as the only dependency
+      })
+
+      console.log("Mapped inventory:", mapped)
+      setInventory(mapped)
+      localStorage.setItem("persistedInventory", JSON.stringify(mapped))
+      setLoading(false)
+    } catch (error) {
+      console.error("Failed to load products:", error)
+      setError("Failed to load inventory data.")
+      setLoading(false)
+      addNotification({
+        type: "alert",
+        title: "Inventory Load Failed",
+        description: `Failed to load inventory data: ${error.message}`,
+        priority: "high",
+        icon: "alert",
+        link: "/inventory",
+      })
+    }
+  }
 
   useEffect(() => {
-    const syncInventoryFromStorage = () => {
-      const persisted = localStorage.getItem("persistedInventory");
-      if (persisted) {
-        const parsed = JSON.parse(persisted);
-        setInventory(updateStatuses(parsed)); // Recalculate statuses when rehydrating
-      }
-    };
+    fetchData()
+  }, [])
 
-    // Sync on page load
-    syncInventoryFromStorage();
+  useEffect(() => {
+    if (location.pathname === "/inventory") {
+      fetchData()
+    }
+  }, [location.pathname])
 
-    // Sync when the tab is focused
-    window.addEventListener("focus", syncInventoryFromStorage);
-    return () => {
-      window.removeEventListener("focus", syncInventoryFromStorage);
-    };
-  }, []); // This effect runs only once to sync with localStorage
+  const updateInventoryState = (updatedInventory) => {
+    setInventory(updatedInventory)
+    localStorage.setItem("persistedInventory", JSON.stringify(updatedInventory))
+  }
 
-  const handleAddProduct = (productData = null) => {
-    setEditingProduct(productData || null);
-    setShowProductForm(true);
-  };
+  const handleAddProduct = () => {
+    setEditingProduct(null)
+    setShowProductForm(true)
+  }
 
-  const handleSaveProduct = (productData) => {
+  const handleSaveProduct = async (productData) => {
+    let updatedInventory
     if (editingProduct && editingProduct.id) {
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.id === editingProduct.id
-            ? { ...productData, status: getItemStatus(productData) }
-            : item
-        )
-      );
+      updatedInventory = inventory.map((item) =>
+        item.id === editingProduct.id ? { ...productData, status: getItemStatus(productData) } : item,
+      )
       addNotification({
         type: "inventory",
         title: "Inventory Item Updated",
@@ -172,15 +129,15 @@ const InventoryManagement = () => {
         priority: "normal",
         icon: "package",
         link: "/inventory",
-      });
+      })
     } else {
-      const newId = `PROD${Date.now()}`; // Simple unique ID
+      const newId = `PROD${Date.now()}`
       const itemToAdd = {
         ...productData,
         id: newId,
         status: getItemStatus(productData),
-      };
-      setInventory((prev) => [...prev, itemToAdd]);
+      }
+      updatedInventory = [...inventory, itemToAdd]
       addNotification({
         type: "inventory",
         title: "New Inventory Item Added",
@@ -188,19 +145,21 @@ const InventoryManagement = () => {
         priority: "normal",
         icon: "package",
         link: "/inventory",
-      });
+      })
     }
-    setShowProductForm(false);
-  };
+    updateInventoryState(updatedInventory)
+    setShowProductForm(false)
+  }
 
   const handleEditProduct = (product) => {
-    setEditingProduct(product);
-    setShowProductForm(true);
-  };
+    setEditingProduct(product)
+    setShowProductForm(true)
+  }
 
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = async (productId) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
-      setInventory((prev) => prev.filter((item) => item.id !== productId));
+      const updatedInventory = inventory.filter((item) => item.id !== productId)
+      updateInventoryState(updatedInventory)
       addNotification({
         type: "inventory",
         title: "Inventory Item Deleted",
@@ -208,78 +167,120 @@ const InventoryManagement = () => {
         priority: "medium",
         icon: "trash",
         link: "/inventory",
-      });
+      })
+      try {
+        await fetch(`http://localhost:5000/api/products/${productId}`, {
+          method: "DELETE",
+        })
+      } catch (error) {
+        console.error("Failed to delete product from backend:", error)
+      }
     }
-  };
+  }
 
   const handleViewDetails = (product) => {
-    setSelectedProduct(product);
-    setShowProductDetails(true);
-  };
+    setSelectedProduct(product)
+    setShowProductDetails(true)
+  }
 
-  const handleCreateOrderFromProduct = (product) => {
-    addNotification({
-      type: "order",
-      title: "Product Selected for Order",
-      description: `Product "${product.name}" selected to create a new order.`,
-      priority: "normal",
-      icon: "shopping-cart",
-      link: "/orders",
-    });
-    localStorage.setItem(
-      "selectedProductFromInventory",
-      JSON.stringify([product])
-    );
-    navigate("/orders");
-  };
-
-  const handleAddToOrder = (product) => {
-    addNotification({
-      type: "order",
-      title: "Product Added to Order Draft",
-      description: `Product "${product.name}" added to your current order draft.`,
-      priority: "normal",
-      icon: "shopping-cart",
-      link: "/orders",
-    });
-    const existing =
-      JSON.parse(localStorage.getItem("selectedProductFromInventory")) || [];
-    const updated = [...existing, product];
-    localStorage.setItem(
-      "selectedProductFromInventory",
-      JSON.stringify(updated)
-    );
-  };
-
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-[calc(100vh-64px)] text-gray-500 text-lg">
-          Loading inventory data...
-        </div>
-      );
+  const handleAddToOrder = async (item, quantity) => {
+    if (quantity > item.quantity) {
+      setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+      return
     }
 
-    if (error) {
-      return (
-        <div className="flex items-center justify-center h-[calc(100vh-64px)] text-red-600 text-lg">
-          Error: {error}
-        </div>
-      );
+    const totalPrice = item.price * quantity
+    const storedList = JSON.parse(localStorage.getItem("selectedProductFromInventory")) || []
+    const existingIndex = storedList.findIndex((p) => p.id === item.id)
+
+    if (existingIndex !== -1) {
+      if (storedList[existingIndex].quantity + quantity > item.quantity) {
+        setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+        return
+      }
+      storedList[existingIndex].quantity += quantity
+      storedList[existingIndex].totalPrice = storedList[existingIndex].quantity * item.price
+    } else {
+      if (quantity > item.quantity) {
+        setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`)
+        return
+      }
+      storedList.push({ ...item, quantity, totalPrice })
     }
 
-    return (
-      <InventoryDashboard
-        inventory={inventory}
-        onAddItem={handleAddProduct}
-        onEditItem={handleEditProduct}
-        onDeleteItem={handleDeleteProduct}
-        onViewDetails={handleViewDetails}
-        onCreateOrder={handleCreateOrderFromProduct}
-        onAddToOrder={handleAddToOrder}
-      />
-    );
-  };
+    localStorage.setItem("selectedProductFromInventory", JSON.stringify(storedList))
+
+    const updatedInventory = inventory.map((product) => {
+      if (product.id === item.id) {
+        const newQty = product.quantity - quantity
+        return {
+          ...product,
+          quantity: newQty,
+          status: getItemStatus({ ...product, quantity: newQty }),
+        }
+      }
+      return product
+    })
+
+    updateInventoryState(updatedInventory)
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/products/${item.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          quantity: item.quantity - quantity,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update stock in the database.")
+      }
+
+      const updatedInventoryFromDB = await fetch("http://localhost:5000/api/products").then((res) => res.json())
+
+      const mappedUpdatedInventory = updatedInventoryFromDB.map((p) => {
+        const price = Number.parseFloat(p.Price || p.price) || 0
+        const quantity = Number.parseInt(p.quantity || p.Quantity) || 0
+        const status = getItemStatus({ ...p, quantity })
+        return {
+          id: p.id ?? p._id ?? `prod-${Date.now()}-${Math.random()}`,
+          productId: p.productId ?? p.ProductID ?? "N/A",
+          name: p.ProductName || p.name || "Unnamed Product",
+          brand: p.ProductBrand || p.brand || "N/A",
+          gender: p.Gender || p.gender || "N/A",
+          price: price,
+          quantity: quantity,
+          category: p.Category || p.category || "N/A",
+          color: p.PrimaryColor || p.color || "N/A",
+          status: status,
+          description: p.Description || p.description || "",
+          imageUrl: p.Image || p.imageUrl || "",
+          lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
+        }
+      })
+      updateInventoryState(mappedUpdatedInventory)
+
+      navigate("/orders")
+    } catch (error) {
+      console.error("Failed to update inventory in database:", error)
+      addNotification({
+        type: "alert",
+        title: "Inventory Update Failed",
+        description: `Failed to update inventory in database: ${error.message}`,
+        priority: "high",
+        icon: "alert",
+        link: "/inventory",
+      })
+    }
+  }
+
+  const handleLogout = () => {
+    clearInventory()
+    navigate("/login")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -290,7 +291,15 @@ const InventoryManagement = () => {
           { text: "Inventory Management", active: true },
         ]}
       />
-      <main className="p-6">{renderContent()}</main>
+      <main className="p-6">
+        <InventoryDashboard
+          onAddItem={handleAddProduct}
+          onEditItem={handleEditProduct}
+          onDeleteItem={handleDeleteProduct}
+          onViewDetails={handleViewDetails}
+          onAddToOrder={handleAddToOrder}
+        />
+      </main>
 
       <ProductForm
         isOpen={showProductForm}
@@ -309,15 +318,14 @@ const InventoryManagement = () => {
           <ProductDetails
             product={selectedProduct}
             onEdit={(product) => {
-              setShowProductDetails(false);
-              handleEditProduct(product);
+              setShowProductDetails(false)
+              handleEditProduct(product)
             }}
           />
         </Modal>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default InventoryManagement;
-  
+export default InventoryManagement

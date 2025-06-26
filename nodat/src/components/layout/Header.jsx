@@ -4,6 +4,7 @@ import { UserContext } from "../../context/UserContext";
 
 const Header = ({ title, breadcrumbs }) => {
   const { username } = useContext(UserContext);
+  
 
   return (
     <div className="header">

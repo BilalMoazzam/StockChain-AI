@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const {
   getProducts,
   getProduct,
@@ -12,25 +13,80 @@ const {
 const { protect, authorize } = require('../middleware/auth');
 const { validateProduct } = require('../middleware/validation');
 
-
 const router = express.Router();
 
-router.use(protect); // All routes are protected
+// Initialize session middleware
+router.use(session({
+  secret: 'your-secret-key',  // Make sure this key is secure
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false, httpOnly: true }  // Cookies settings (ensure 'secure' is true in production with HTTPS)
+}));
 
-router
-  .route('/')
-  .get(getProducts)
-  .post(validateProduct, createProduct);
+// Protect all routes below this line
+router.use(protect);  // All routes will require authentication
 
+// GET: List all products
+router.route('/')
+  .get(getProducts)  // Controller handles fetching all products
+  .post(validateProduct, createProduct);  // Create new product with validation
+
+// GET: Inventory stats (for reporting or analytics)
 router.get('/stats', getInventoryStats);
+
+// GET: Low stock alerts
 router.get('/alerts', getLowStockAlerts);
 
+// GET, PUT, DELETE: Handle individual product routes
 router
   .route('/:id')
-  .get(getProduct)
-  .put(validateProduct, updateProduct)
-  .delete(authorize('Admin', 'Manager'), deleteProduct);
+  .get(getProduct)  // Get individual product
+  .put(validateProduct, updateProduct)  // Update product
+  .delete(authorize('Admin', 'Manager'), deleteProduct);  // Delete product (authorized roles)
 
-router.put('/:id/stock', updateStock);
+// PUT: Update stock for a specific product
+router.put('/:id/stock', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantityOrdered } = req.body;  // The quantity ordered to update stock
+
+    // Find the product by ID
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Temporarily reduce the stock in session
+    req.session.tempStock = req.session.tempStock || {};
+    if (req.session.tempStock[id]) {
+      req.session.tempStock[id] -= quantityOrdered;  // Reduce stock from session temporarily
+    } else {
+      req.session.tempStock[id] = product.quantity - quantityOrdered; // Set initial value
+    }
+
+    // Optionally, save this temporary stock update to the product (in database or session)
+    res.status(200).json({
+      message: `Stock updated temporarily for product ID: ${id}. New stock: ${req.session.tempStock[id]}`,
+      stock: req.session.tempStock[id]
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating stock', error: err });
+  }
+});
+
+// Reset session data when user logs out (clear tempStock)
+router.post('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Error logging out', error: err });
+    }
+
+    // Optionally clear session cookie to ensure that the session data is wiped
+    res.clearCookie('connect.sid');  // Clear the session cookie
+
+    res.status(200).json({ message: 'User logged out successfully' });
+  });
+});
 
 module.exports = router;

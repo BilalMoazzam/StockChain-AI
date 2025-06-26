@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Package,
   TrendingDown,
@@ -13,19 +12,17 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { useNavigate, useLocation  } from "react-router-dom";
-import { addNotification } from "../../utils/notificationService";
-import InventoryManagement from "../styles/InventoryManagement.css";
-
+import { useNavigate, useLocation } from "react-router-dom";
+import { useInventory } from "../../context/InventoryContext";
 
 export function InventoryDashboard({
-  inventory,
   onAddItem,
   onEditItem,
   onDeleteItem,
   onViewDetails,
   onAddToOrder,
 }) {
+  const { inventory: contextInventory, setInventory } = useInventory();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -36,126 +33,83 @@ export function InventoryDashboard({
   const navigate = useNavigate();
   const location = useLocation();
   const [lowStockItems, setLowStockItems] = useState(0);
-const [outOfStockItems, setOutOfStockItems] = useState(0);
-const [totalProducts, setTotalProducts] = useState(0);
+  const [outOfStockItems, setOutOfStockItems] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalValue, setTotalValue] = useState(0);
+  const [shouldRefresh, setShouldRefresh] = useState(false);
 
   const LOW_STOCK_THRESHOLD = 9;
 
-  const getCurrentInventory = () =>
-  JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
-
-
-  // const totalProducts = getCurrentInventory().length;
-  useEffect(() => {
-  const updated = getCurrentInventory();
-
-  setTotalProducts(updated.length);
-  setLowStockItems(updated.filter(item => getItemStatus(item) === "Low Stock").length);
-  setOutOfStockItems(updated.filter(item => getItemStatus(item) === "Out of Stock").length);
-}, [filteredInventory, location.pathname]);
-
-
+  // Helper to determine item status (unified logic)
   const getItemStatus = (item) => {
     const qty = Number(item.quantity);
-
     if (isNaN(qty) || qty <= 0) return "Out of Stock";
     if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock";
-
     return "In Stock";
   };
 
-//   const lowStockItems = getCurrentInventory().filter(
-//   (item) => getItemStatus(item) === "Low Stock"
-// ).length;
-
-// const outOfStockItems = getCurrentInventory().filter(
-//   (item) => getItemStatus(item) === "Out of Stock"
-// ).length;
-
-
-
-  const [totalValue, setTotalValue] = useState(0);
-
-  useEffect(() => {
-    const currentInventory =
-      JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
-
-    const newTotal = currentInventory.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
+  const updateDashboardStats = (updatedInventory) => {
+    setTotalProducts(updatedInventory.length);
+    setLowStockItems(
+      updatedInventory.filter((item) => getItemStatus(item) === "Low Stock")
+        .length
     );
+    setOutOfStockItems(
+      updatedInventory.filter((item) => getItemStatus(item) === "Out of Stock")
+        .length
+    );
+    setTotalValue(
+      updatedInventory.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+        0
+      )
+    );
+  };
 
-    setTotalValue(newTotal);
-  }, [filteredInventory]);
+  // Define the missing functions
+  const handleView = (item) => {
+    onViewDetails(item);
+  };
+
+  const handleEdit = (item) => {
+    onEditItem(item);
+  };
+
+  const handleDelete = (itemId) => {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this product? This action cannot be undone."
+      )
+    ) {
+      onDeleteItem(itemId);
+    }
+  };
+
+  // Filter inventory whenever contextInventory, searchTerm, categoryFilter, or statusFilter changes
   useEffect(() => {
-  const refreshInventory = () => {
-    const updatedInventory = getCurrentInventory();
-    const filtered = updatedInventory
-  .map((item) => ({ ...item, status: getItemStatus(item) }))
-  .filter((item) => {
-    const matchesSearch =
-      (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const newFiltered = contextInventory
+      .map((item) => ({
+        ...item,
+        status: getItemStatus(item), // Ensure status is always up-to-date
+      }))
+      .filter((item) => {
+        const matchesSearch =
+          (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCategory = !categoryFilter || item.category === categoryFilter;
-    const matchesStatus = !statusFilter || item.status === statusFilter;
+        const matchesCategory =
+          !categoryFilter || item.category === categoryFilter;
+        const matchesStatus = !statusFilter || item.status === statusFilter;
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+        return matchesSearch && matchesCategory && matchesStatus;
+      });
 
-setFilteredInventory(filtered);
-
-  };
-
-  window.addEventListener("focus", refreshInventory);
-
-  return () => {
-    window.removeEventListener("focus", refreshInventory);
-  };
-}, []);
-
-useEffect(() => {
-  const inventoryData = getCurrentInventory();
-
-  const enriched = inventoryData.map((item) => ({
-    ...item,
-    status: getItemStatus(item),
-  }));
-
-  setFilteredInventory(enriched); // ✅ this triggers the stats counters
-}, [location.pathname]);
-
-
-useEffect(() => {
-  const baseInventory = getCurrentInventory();
-
-  const newFiltered = baseInventory
-    .map((item) => ({
-      ...item,
-      status: getItemStatus(item),
-    }))
-    .filter((item) => {
-      const matchesSearch =
-        (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.size || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.color || "").toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCategory =
-        !categoryFilter || item.category === categoryFilter;
-      const matchesStatus = !statusFilter || item.status === statusFilter;
-
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-
-  setFilteredInventory(newFiltered);
-}, [location.pathname, searchTerm, categoryFilter, statusFilter]);
-
-
+    setFilteredInventory(newFiltered);
+    updateDashboardStats(newFiltered); // Update stats based on filtered inventory
+  }, [contextInventory, searchTerm, categoryFilter, statusFilter]);
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -175,7 +129,6 @@ useEffect(() => {
         border: "1px solid #fecaca",
       },
     };
-
     return (
       <span
         style={{
@@ -190,132 +143,6 @@ useEffect(() => {
       </span>
     );
   };
-
-  const handleEdit = (item) => {
-    onEditItem(item);
-  };
-
-  const handleDelete = (itemId) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this product? This action cannot be undone."
-      )
-    ) {
-      onDeleteItem(itemId);
-    }
-  };
-
-  const handleView = (item) => {
-    onViewDetails(item);
-  };
-
-  const handleAddToOrder = (item, quantity) => {
-    if (quantity > item.quantity) {
-      setOrderSuccessMsg(`❌ Not enough stock for "${item.name}"`);
-      return;
-    }
-
-    // 🧮 Calculate total price for selected quantity
-    const totalPrice = item.price * quantity;
-
-    // 📦 Get existing list
-    const storedList =
-      JSON.parse(localStorage.getItem("selectedProductFromInventory")) || [];
-
-    // 🔍 Check if item with same ID already exists
-    const existingIndex = storedList.findIndex((p) => p.id === item.id);
-
-    if (existingIndex !== -1) {
-      // ✅ Update quantity and totalPrice if item already in list
-      storedList[existingIndex].quantity += quantity;
-      storedList[existingIndex].totalPrice =
-        storedList[existingIndex].quantity * item.price;
-    } else {
-      // ➕ Add new item
-      storedList.push({ ...item, quantity, totalPrice });
-    }
-
-    // 💾 Save updated list
-    localStorage.setItem(
-      "selectedProductFromInventory",
-      JSON.stringify(storedList)
-    );
-
-    // 🔁 Update inventory by reducing item stock
-    const currentInventory =
-      JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
-
-    const updatedInventory = currentInventory.map((product) =>
-      product.id === item.id
-        ? { ...product, quantity: product.quantity - quantity }
-        : product
-    );
-
-    localStorage.setItem(
-      "persistedInventory",
-      JSON.stringify(updatedInventory)
-    );
-
-    setFilteredInventory(updatedInventory);
-
-    // ✅ Navigate to orders page
-    navigate("/orders");
-  };
-  useEffect(() => {
-  const inventoryData = JSON.parse(localStorage.getItem("persistedInventory")) || inventory;
-  const notifiedItems = JSON.parse(localStorage.getItem("notifiedStockItems")) || {};
-
-  const updatedNotifiedItems = { ...notifiedItems };
-
-  inventoryData.forEach((item) => {
-    const key = item.id || item.sku;
-    const prevStatus = notifiedItems[key];
-    const currentQty = item.quantity ?? 0;
-
-    // Case 1: Out of stock
-    if (currentQty === 0 && prevStatus !== "out") {
-      addNotification({
-        type: "inventory",
-        title: "Out of Stock",
-        description: `"${item.name}" is completely out of stock!`,
-        priority: "high",
-        icon: "alert-triangle",
-        link: "/inventory",
-      });
-      updatedNotifiedItems[key] = "out";
-
-    // Case 2: Low stock but not out
-    } else if (currentQty < 5 && currentQty > 0 && prevStatus !== "low") {
-      addNotification({
-        type: "inventory",
-        title: "Low Stock Alert",
-        description: `"${item.name}" stock is low (${currentQty} left).`,
-        priority: "medium",
-        icon: "box",
-        link: "/inventory",
-      });
-      updatedNotifiedItems[key] = "low";
-
-    // Case 3: Restocked (was low/out before)
-    } else if (currentQty >= 5 && (prevStatus === "low" || prevStatus === "out")) {
-      addNotification({
-        type: "inventory",
-        title: "Restocked",
-        description: `"${item.name}" has been restocked (Now: ${currentQty}).`,
-        priority: "info",
-        icon: "check-circle",
-        link: "/inventory",
-      });
-      delete updatedNotifiedItems[key]; // reset notification flag
-    }
-
-    // Case 4: No change (already notified), do nothing
-  });
-
-  localStorage.setItem("notifiedStockItems", JSON.stringify(updatedNotifiedItems));
-}, []);
-
-
 
   return (
     <div className="" style={{ padding: "24px" }}>
@@ -576,7 +403,7 @@ useEffect(() => {
                 color: "#1f2937",
               }}
             >
-              Shalwar Kameez Inventory
+              Shoes Inventory
             </h2>
             <p
               style={{
@@ -585,7 +412,7 @@ useEffect(() => {
                 color: "#6b7280",
               }}
             >
-              Manage your clothing inventory for men, women, and children
+              Manage your Shoes inventory.
             </p>
           </div>
 
@@ -642,9 +469,9 @@ useEffect(() => {
               }}
             >
               <option value="">All Categories</option>
-              <option value="Men">Men Shalwar Kameez</option>
-              <option value="Women">Women Shalwar Kameez</option>
-              <option value="Child">Children Shalwar Kameez</option>
+              <option value="Nike">Nike Shoes</option>
+              <option value="Adidas">Adidas Shoes</option>
+              <option value="Vans">Vans Shoes</option>
             </select>
 
             {/* Status Filter */}
@@ -665,30 +492,6 @@ useEffect(() => {
               <option value="Low Stock">Low Stock</option>
               <option value="Out of Stock">Out of Stock</option>
             </select>
-
-            {/* Add Product Button */}
-            <button
-              onClick={onAddItem}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 16px",
-                backgroundColor: "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "14px",
-                fontWeight: "500",
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = "#2563eb")}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = "#3b82f6")}
-            >
-              <Plus size={16} />
-              Add New Item
-            </button>
           </div>
         </div>
 
@@ -696,21 +499,19 @@ useEffect(() => {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead style={{ backgroundColor: "#f9fafb" }}>
-              <tr>
-                {/* Your header columns */}
-                <th style={thStyle}>Product Details</th>
-                <th style={thStyle}>Category</th>
-                <th style={thStyle}> Color</th>
-                <th style={thStyle}>Stock</th>
-                <th style={thStyle}>Price</th>
-                <th style={thStyle}>Status</th>
-                <th style={thStyle}>Actions</th>
+              <tr style={{ textAlign:"left"  }}>
+                <th className="thStyle" style={{ paddingBlock:"20px", paddingInline:"50px"  }}>Product Details</th>
+                <th className="thStyle">Category</th>
+                <th className="thStyle">Color</th>
+                <th className="thStyle">Stock</th>
+                <th className="thStyle">Price</th>
+                <th className="thStyle" style={{  paddingInline:"20px"  }}>Status</th>
+                <th className="thStyle" style={{  paddingInline:"50px"  }}>Actions</th>
               </tr>
             </thead>
-
-            <tbody>
-              {filteredInventory.map((item) => (
-                <React.Fragment key={item.id}>
+            <tbody className="">
+              {filteredInventory.map((item, index) => (
+                <React.Fragment key={item.id || `${item.name}-${index}`}>
                   <tr
                     style={{
                       borderBottom: "1px solid #e5e7eb",
@@ -723,28 +524,54 @@ useEffect(() => {
                       (e.currentTarget.style.backgroundColor = "transparent")
                     }
                   >
-                    <td style={{ padding: "16px 24px" }}>
-                      <div>
-                        <p style={pMain}>{item.name}</p>
-                        <p style={pSub}>ID: {item.id ?? item.id}</p>
-                        <p style={pSub}>Brand: {item.brand ?? "N/A"}</p>
-                        <p style={pSub}>Gender: {item.gender ?? "N/A"}</p>
+                    <td className="tdText">
+                      <div >
+                        {" "}
+                        {/* Adding margin to the main div */}
+                        <p
+                          className="pMain"
+                          style={{ fontWeight: "bold", paddingLeft:"60px", marginBlock:"20px"}}
+                        >
+                          {item.name}
+                        </p>{" "}
+                        <p
+                          className="pMain"
+                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                        >
+                           {item.id ?? "N/A"}
+                        </p>{" "}
+                        <p
+                          className="pMain"
+                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                        >
+                           {item.brand ?? "N/A"}
+                        </p>{" "}
+                        <p
+                          className="pMain"
+                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                        >
+                           {item.gender ?? "N/A"}
+                        </p>{" "}
+                        {/* Making product name bold */}
+                        {/* <p className="pSub">ID: {item.id ?? "N/A"}</p>
+                        <p className="pSub">Brand: {item.brand ?? "N/A"}</p>
+                        <p className="pSub">Gender: {item.gender ?? "N/A"}</p> */}
                       </div>
                     </td>
 
-                    <td style={tdText}>{item.category ?? "N/A"}</td>
+                    <td className="tdText">{item.category ?? "N/A"}</td>
 
-                    <td style={{ padding: "16px 24px" }}>
-                      <p style={pMain}>{item.color ?? "N/A"}</p>
+                    <td className="tdText">
+                      <p className="pMain">{item.color ?? "N/A"}</p>
                     </td>
 
-                    <td style={tdStrong}>
+                    <td className="tdStrong">
                       {typeof item.quantity === "number"
                         ? item.quantity
                         : "N/A"}
                     </td>
 
-                    <td style={tdStrong}>
+                    <td className="tdStrong">
                       Rs.{" "}
                       {typeof item.price === "number"
                         ? item.price.toFixed(0)
@@ -801,6 +628,7 @@ useEffect(() => {
                         >
                           <Trash2 size={18} color="#dc2626" />
                         </button>
+
                         <button
                           onClick={() =>
                             setExpandedRowId(
@@ -899,7 +727,8 @@ useEffect(() => {
                                 onChange={(e) =>
                                   setOrderQuantities({
                                     ...orderQuantities,
-                                    [item.id]: parseInt(e.target.value) || 0,
+                                    [item.id]:
+                                      Number.parseInt(e.target.value) || 0,
                                   })
                                 }
                                 style={{
@@ -922,7 +751,7 @@ useEffect(() => {
 
                             <button
                               onClick={() =>
-                                handleAddToOrder(
+                                onAddToOrder(
                                   item,
                                   orderQuantities[item.id] || 0
                                 )
@@ -956,56 +785,8 @@ useEffect(() => {
               ))}
             </tbody>
           </table>
-
-         
         </div>
       </div>
     </div>
   );
 }
-
-const thStyle = {
-  padding: "12px 24px",
-  textAlign: "left",
-  fontSize: "12px",
-  fontWeight: "600",
-  color: "#374151",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-};
-
-const tdText = {
-  padding: "16px 24px",
-  fontSize: "14px",
-  color: "#374151",
-};
-
-const tdStrong = {
-  padding: "16px 24px",
-  fontSize: "14px",
-  color: "#374151",
-  fontWeight: "500",
-};
-
-const pMain = {
-  margin: 0,
-  fontSize: "14px",
-  fontWeight: "500",
-  color: "#1f2937",
-};
-
-const pSub = {
-  margin: "2px 0 0 0",
-  fontSize: "12px",
-  color: "#6b7280",
-};
-
-const expandBtnStyle = {
-  padding: "6px",
-  border: "none",
-  backgroundColor: "transparent",
-  borderRadius: "4px",
-  cursor: "pointer",
-  color: "#6b7280",
-  transition: "color 0.2s",
-};
