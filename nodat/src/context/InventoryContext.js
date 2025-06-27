@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { useApp } from "../context/AppContext";
+
 
 const InventoryContext = createContext(null)
 
@@ -17,6 +19,9 @@ export const InventoryProvider = ({ children }) => {
   const [totalProductsCount, setTotalProductsCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const { state: { user } } = useApp();
+const isAuthenticated = Boolean(user);
+
 
   // Helper to determine item status (unified logic)
   const getItemStatus = useCallback((item) => {
@@ -37,101 +42,54 @@ export const InventoryProvider = ({ children }) => {
   }
 
   // Function to fetch inventory data with pagination
-  const fetchInventoryData = useCallback(
+// inside your InventoryContext.js, replace fetchInventoryData with:
+const fetchInventoryData = useCallback(
   async (page = 1, limit = 20, append = false) => {
     setIsLoading(true);
     setError(null);
+
     try {
+      // 1) Grab the token you saved during login
       const token = localStorage.getItem("authToken");
-      console.log("Auth Token:", token); // Debugging log
-
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      } else {
-        console.warn("No token found. Unable to make authenticated request.");
+      console.log("🕵️‍♂️ [InventoryContext] token from localStorage:", token);
+      if (!token) {
+        console.error("No auth token found; cannot fetch inventory.");
+        throw new Error("Not authorized, no token");
       }
 
-      const res = await fetch(`http://localhost:5000/api/inventory?page=${page}&limit=${limit}`, {
-        headers: headers,
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          // Handle unauthorized error
-          const errorData = await res.json();
-          console.error("Backend Error: Unauthorized", errorData);
-          throw new Error("Unauthorized. Please check your authentication.");
+      // 2) Fetch, attaching the Bearer token
+      console.log(
+        `🕵️‍♂️ [InventoryContext] calling /api/inventory?page=${page}&limit=${limit}`
+      );
+      const res = await fetch(
+        `http://localhost:5000/api/inventory?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
         }
+      );
+
+      // 3) Handle common failure cases
+      if (res.status === 401) {
+        console.error("🛑 [InventoryContext] Unauthorized (401) from server");
+        throw new Error("Not authorized, token failed");
+      }
+      if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
+      // 4) Parse and map your data
       const responseData = await res.json();
-      console.log("Fetched raw inventory data in context:", responseData);
+      console.log("✅ [InventoryContext] raw responseData:", responseData);
 
-      if (!responseData.data || !Array.isArray(responseData.data)) {
-        console.warn("No inventory data found or data is not an array in response.");
-        if (!append) {
-          setInventory([]);
-          setTotalProductsCount(0);
-          localStorage.removeItem("persistedInventory");
-        }
-        setIsLoading(false);
-        return;
-      }
+      // … then your mapping & setInventory logic as before …
 
-      const mapped = responseData.data.map((p) => {
-        const price = Number.parseFloat(p.price?.retail || p.price || 0) || 0;
-        const quantity = Number.parseInt(p.stock?.current || p.quantity || 0) || 0;
-
-        const status = getItemStatus({ ...p, quantity });
-        return {
-          id: p._id,
-          sku: p.sku || "N/A",
-          name: p.name || "Unnamed Product",
-          brand: p.brand || "N/A",
-          gender: p.gender || "N/A",
-          price: price,
-          quantity: quantity,
-          category: p.category?.name || p.category || "N/A",
-          color: p.color || "N/A",
-          status: status,
-          description: p.description || "",
-          imageUrl: p.imageUrl || "",
-          lastUpdated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "N/A",
-        };
-      });
-
-      setTotalProductsCount(responseData.total);
-
-      if (append) {
-        setInventory((prev) => {
-          const newItems = mapped.filter((newItem) => !prev.some((existingItem) => existingItem.id === newItem.id));
-          const updatedPrev = prev.map((existingItem) => {
-            const updatedItem = mapped.find((newItem) => newItem.id === existingItem.id);
-            return updatedItem ? updatedItem : existingItem;
-          });
-          const combined = [...updatedPrev, ...newItems];
-          localStorage.setItem("persistedInventory", JSON.stringify(combined));
-          return combined;
-        });
-      } else {
-        setInventory(mapped);
-        localStorage.setItem("persistedInventory", JSON.stringify(mapped));
-      }
-
-      console.log("Inventory state updated and persisted in context.");
     } catch (err) {
-      console.error("Error fetching inventory in context:", err);
-      setError(err);
-      if (!append) {
-        setInventory([]);
-        setTotalProductsCount(0);
-        localStorage.removeItem("persistedInventory");
-      }
+      console.error("❌ [InventoryContext] Error fetching inventory:", err);
+      // … your existing error handling …
     } finally {
       setIsLoading(false);
     }
@@ -158,22 +116,25 @@ export const InventoryProvider = ({ children }) => {
     [getItemStatus],
   )
 
-  useEffect(() => {
-    // Attempt to load from localStorage first
-    const storedInventory = localStorage.getItem("persistedInventory")
-    if (storedInventory) {
+   useEffect(() => {
+    const stored = localStorage.getItem("persistedInventory");
+    if (stored) {
       try {
-        const parsedInventory = JSON.parse(storedInventory)
-        setInventory(parsedInventory)
-        setTotalProductsCount(parsedInventory.length) // Initial count from stored data
-      } catch (e) {
-        console.error("Failed to parse stored inventory from localStorage:", e)
-        localStorage.removeItem("persistedInventory")
+        const arr = JSON.parse(stored);
+        setInventory(arr);
+        setTotalProductsCount(arr.length);
+      } catch {
+        localStorage.removeItem("persistedInventory");
       }
     }
-    // Then fetch fresh data from the backend
-    fetchInventoryData()
-  }, [fetchInventoryData]) // Depend on fetchInventoryData to re-run if it changes
+  }, []); // ← run only once
+
+  // 3️⃣ Fetch fresh data—but only after login (isAuthenticated flips to true)
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchInventoryData();
+    }
+  }, [fetchInventoryData, isAuthenticated]);
 
   const contextValue = {
     inventory,

@@ -287,6 +287,7 @@ const OrderManagement = ({
             setSelectedOrder(o);
             setShowOrderDetails(true);
           }}
+          onBuyNow={handleBuyNow}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onClearSelected={handleClearSelected} // Pass the new handler
           onRemoveProductFromDraft={handleRemoveProductFromDraft} // Pass the new handler for individual removal

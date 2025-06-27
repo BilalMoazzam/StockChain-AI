@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Package,
   TrendingDown,
@@ -37,6 +37,8 @@ export function InventoryDashboard({
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalValue, setTotalValue] = useState(0);
   const [shouldRefresh, setShouldRefresh] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const tableContainerRef = useRef(null);
 
   const LOW_STOCK_THRESHOLD = 9;
 
@@ -46,6 +48,14 @@ export function InventoryDashboard({
     if (isNaN(qty) || qty <= 0) return "Out of Stock";
     if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock";
     return "In Stock";
+  };
+
+  const handleScroll = (e) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.target;
+    // when within 5px of bottom, load 20 more
+    if (scrollTop + clientHeight >= scrollHeight - 5) {
+      setVisibleCount((c) => Math.min(c + 20, filteredInventory.length));
+    }
   };
 
   const updateDashboardStats = (updatedInventory) => {
@@ -108,7 +118,8 @@ export function InventoryDashboard({
       });
 
     setFilteredInventory(newFiltered);
-    updateDashboardStats(newFiltered); // Update stats based on filtered inventory
+    updateDashboardStats(newFiltered);
+    setVisibleCount(20);
   }, [contextInventory, searchTerm, categoryFilter, statusFilter]);
 
   const getStatusBadge = (status) => {
@@ -143,7 +154,6 @@ export function InventoryDashboard({
       </span>
     );
   };
-  console.log("low stock items:", lowStockItems,"out of stock items ", outOfStockItems)
 
   return (
     <div className="" style={{ padding: "24px" }}>
@@ -497,21 +507,41 @@ export function InventoryDashboard({
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: "auto" }}>
+        <div
+          ref={tableContainerRef}
+          onScroll={handleScroll}
+          style={{
+            maxHeight: "600px",
+            overflowY: "auto",
+            overflowX: "hidden",
+          }}
+        >
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead style={{ backgroundColor: "#f9fafb" }}>
-              <tr style={{ textAlign:"left"  }}>
-                <th className="thStyle" style={{ paddingBlock:"20px", paddingInline:"50px"  }}>Product Details</th>
+              <tr style={{ textAlign: "left" }}>
+                <th
+                  className="thStyle"
+                  style={{ paddingBlock: "20px", paddingInline: "50px" }}
+                >
+                  Product Details
+                </th>
                 <th className="thStyle">Category</th>
                 <th className="thStyle">Color</th>
                 <th className="thStyle">Stock</th>
                 <th className="thStyle">Price</th>
-                <th className="thStyle" style={{  paddingInline:"20px"  }}>Status</th>
-                <th className="thStyle" style={{ paddingBlock:"20px", paddingInline:"50px"  }}>Actions</th>
+                <th className="thStyle" style={{ paddingInline: "20px" }}>
+                  Status
+                </th>
+                <th
+                  className="thStyle"
+                  style={{ paddingBlock: "20px", paddingInline: "50px" }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="">
-              {filteredInventory.map((item, index) => (
+              {filteredInventory.slice(0, visibleCount).map((item, index) => (
                 <React.Fragment key={item.id || `${item.name}-${index}`}>
                   <tr
                     style={{
@@ -526,32 +556,36 @@ export function InventoryDashboard({
                     }
                   >
                     <td className="tdText">
-                      <div >
+                      <div>
                         {" "}
                         {/* Adding margin to the main div */}
                         <p
                           className="pMain"
-                          style={{ fontWeight: "bold", paddingLeft:"60px", marginBlock:"20px"}}
+                          style={{
+                            fontWeight: "bold",
+                            paddingLeft: "60px",
+                            marginBlock: "20px",
+                          }}
                         >
                           {item.name}
                         </p>{" "}
                         <p
                           className="pMain"
-                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                          style={{ paddingLeft: "60px", marginBlock: "6px" }}
                         >
-                           {item.id ?? "N/A"}
+                          {item.id ?? "N/A"}
                         </p>{" "}
                         <p
                           className="pMain"
-                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                          style={{ paddingLeft: "60px", marginBlock: "6px" }}
                         >
-                           {item.brand ?? "N/A"}
+                          {item.brand ?? "N/A"}
                         </p>{" "}
                         <p
                           className="pMain"
-                          style={{   paddingLeft:"60px", marginBlock:"6px"}}
+                          style={{ paddingLeft: "60px", marginBlock: "6px" }}
                         >
-                           {item.gender ?? "N/A"}
+                          {item.gender ?? "N/A"}
                         </p>{" "}
                         {/* Making product name bold */}
                         {/* <p className="pSub">ID: {item.id ?? "N/A"}</p>
@@ -725,13 +759,27 @@ export function InventoryDashboard({
                                 min={1}
                                 max={item.quantity}
                                 value={orderQuantities[item.id] ?? ""}
-                                onChange={(e) =>
-                                  setOrderQuantities({
-                                    ...orderQuantities,
-                                    [item.id]:
-                                      Number.parseInt(e.target.value) || 0,
-                                  })
-                                }
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  const parsedValue = parseInt(value, 10);
+
+                                  // Update state only if it's a number or empty
+                                  if (
+                                    !isNaN(parsedValue) &&
+                                    parsedValue >= 1 &&
+                                    parsedValue <= item.quantity
+                                  ) {
+                                    setOrderQuantities((prev) => ({
+                                      ...prev,
+                                      [item.id]: parsedValue,
+                                    }));
+                                  } else if (value === "") {
+                                    setOrderQuantities((prev) => ({
+                                      ...prev,
+                                      [item.id]: "",
+                                    }));
+                                  }
+                                }}
                                 style={{
                                   width: "80px",
                                   padding: "8px",

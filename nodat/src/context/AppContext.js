@@ -117,6 +117,7 @@ export const AppProvider = ({ children }) => {
       // Step 1: Authenticate with your auth backend
       const authResponse = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

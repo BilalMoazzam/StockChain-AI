@@ -1,246 +1,228 @@
-"use client"
+import { useState, useEffect, useCallback } from "react";
+import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";  // Import useNavigate
+import axios from "axios";
+import UserTableSetting from "../UserTableSetting";
+import AddUserModal from "../AddUserModal";
+import { useApp } from "../../context/AppContext";
 
-import { useState, useEffect } from "react"
-import { Edit, Trash2, UserPlus, MoreVertical } from "lucide-react"
+const API_URL =
+  process.env.REACT_APP_ADMIN_USERS_API_URL ||
+  "http://localhost:5000/api/admin/users";
 
 const UserManagementSettings = ({ onSettingsChange = () => {} }) => {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(false) // no loading from mock data now
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [newUser, setNewUser] = useState({
-    name: "",
-    email: "",
-    role: "Admin",
-    department: "",
-    status: "Active",
-  })
-  const [editingUser, setEditingUser] = useState(null)
-  const [activeDropdown, setActiveDropdown] = useState(null)
+  const { state, actions } = useApp();
+  const currentUser = state.user;
+  const navigate = useNavigate(); // Initialize navigate
+
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState("All Users");
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      console.warn("No auth token found");
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const response = await axios.get(API_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsers(response.data.users || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      actions.setError(`Failed to fetch users: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [actions]);
 
   useEffect(() => {
-    // No mock data loading, so no initial load here
+    fetchUsers();
+  }, [fetchUsers]);
 
-    // Close dropdown on outside click
-    const handleClickOutside = () => setActiveDropdown(null)
-    document.addEventListener("click", handleClickOutside)
-    return () => document.removeEventListener("click", handleClickOutside)
-  }, [])
-
-  const toggleDropdown = (userId) => {
-    setActiveDropdown((prev) => (prev === userId ? null : userId))
-  }
-
-  const handleAddUser = () => {
-    setShowAddModal(true)
-  }
-
-  const handleCloseModal = () => {
-    setShowAddModal(false)
-    setEditingUser(null)
-    setNewUser({
-      name: "",
-      email: "",
-      role: "Admin",
-      department: "",
-      status: "Active",
-    })
-  }
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    if (editingUser) {
-      setEditingUser({ ...editingUser, [name]: value })
-    } else {
-      setNewUser({ ...newUser, [name]: value })
+  useEffect(() => {
+    let combinedUsers = [...users];
+    if (currentUser) {
+      const idx = combinedUsers.findIndex((u) => u.id === currentUser.id);
+      if (idx !== -1) {
+        const user = combinedUsers.splice(idx, 1)[0];
+        combinedUsers.unshift({
+          ...user,
+          isCurrentUser: true,
+          status: currentUser.status || "Active",
+          lastActive: currentUser.lastActive || new Date().toISOString(),
+          department: currentUser.department || "General",
+        });
+      } else {
+        combinedUsers.unshift({
+          ...currentUser,
+          isCurrentUser: true,
+          status: currentUser.status || "Active",
+          lastActive: currentUser.lastActive || new Date().toISOString(),
+          department: currentUser.department || "General",
+        });
+      }
     }
-  }
 
-  const handleSaveUser = () => {
-    if (editingUser) {
-      const updated = users.map((u) => (u.id === editingUser.id ? editingUser : u))
-      setUsers(updated)
-    } else {
-      const newId = users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1
-      setUsers([...users, { ...newUser, id: newId, lastActive: "Just now" }])
+    let filtered = combinedUsers;
+    if (searchTerm) {
+      filtered = filtered.filter((u) =>
+        [u.name, u.email, u.role, u.department, u.status].some((field) =>
+          field?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
     }
-    handleCloseModal()
-    onSettingsChange()
-  }
+    if (selectedFilter === "Active")
+      filtered = filtered.filter((u) => u.status === "Active");
+    if (selectedFilter === "Inactive")
+      filtered = filtered.filter((u) => u.status === "Inactive");
+    setFilteredUsers(filtered);
+  }, [searchTerm, selectedFilter, users, currentUser]);
 
-  const handleEditUser = (user) => {
-    setEditingUser(user)
-    setShowAddModal(true)
-  }
+  const handleAddUser = () => setShowAddModal(true);
+  const handleCloseModal = () => setShowAddModal(false);
 
-  const handleDeleteUser = (id) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      setUsers(users.filter((u) => u.id !== id))
-      onSettingsChange()
+  const handleSaveUser = async (newUser) => {
+    const token = localStorage.getItem("authToken");
+    try {
+      const response = await axios.post(
+        API_URL,
+        {
+          ...newUser,
+          status: "Active", // Ensure status is sent
+          lastActive: new Date().toISOString(), // Ensure lastActive is sent
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log("User added successfully:", response.data.user);
+      fetchUsers(); // Re-fetch users to update the table
+    } catch (error) {
+      console.error("Failed to save user:", error);
+      alert(`Failed to add user: ${error.message}`);
+    } finally {
+      handleCloseModal();
     }
-  }
+  };
 
-  const handleToggleStatus = (id) => {
-    const updated = users.map((u) =>
-      u.id === id ? { ...u, status: u.status === "Active" ? "Inactive" : "Active" } : u
-    )
-    setUsers(updated)
-    onSettingsChange()
+  const handleEditUser = async (updatedUser) => {
+  const token = localStorage.getItem("authToken");
+  try {
+    const response = await axios.put(
+      `${API_URL}/${updatedUser.id}`,
+      updatedUser,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    console.log("User updated successfully:", response.data.user);
+    fetchUsers(); // Re-fetch users to update the table
+    navigate(`/user/${updatedUser.id}`);  // Navigate to the updated user's details page
+  } catch (error) {
+    console.error("Failed to save user:", error);
+    alert(`Failed to save user: ${error.message}`);
   }
+};
+
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    const token = localStorage.getItem("authToken");
+    try {
+      await axios.delete(`${API_URL}/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log(`User ${userId} deleted successfully.`);
+      fetchUsers(); // Re-fetch users to update the table
+    } catch (error) {
+      alert(`Failed to delete user: ${error.message}`);
+      console.error("Delete error:", error);
+    }
+  };
+
+  const handleToggleStatus = async (userId) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) {
+      console.warn("User not found for status toggle.");
+      return;
+    }
+
+    const token = localStorage.getItem("authToken");
+    const newStatus = user.status === "Active" ? "Inactive" : "Active";
+
+    try {
+      const res = await axios.put(
+        `${API_URL}/${userId}`,
+        {
+          status: newStatus,
+          lastActive: new Date().toISOString(),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log("User status toggled successfully:", res.data.user);
+      fetchUsers(); // Re-fetch users to update the table
+    } catch (error) {
+      console.error("Error toggling status:", error);
+      alert(`Failed to toggle user status: ${error.message}`);
+    }
+  };
 
   return (
-    <div className="settings-section user-management-settings">
-      <div className="section-header">
-        <h2>User Management</h2>
-      </div>
+    <div className="user-management">
+      <div className="user-management-container">
+        <div className="user-management-header">
+          <h2>Manage All Users</h2>
+        </div>
 
-      <div className="users-table-container">
+        <div className="user-management-filters">
+          <div className="search-bar">
+            <Search size={18} />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search users..."
+            />
+          </div>
+          <select
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+          >
+            <option value="All Users">All Users</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+
         {loading ? (
-          <div className="loading-indicator">Loading users...</div>
+          <div>Loading users...</div>
         ) : (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Status</th>
-                <th>Last Active</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan="6">No users found</td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="user-info">
-                        <div>{user.name}</div>
-                        <div className="text-muted text-sm">{user.email}</div>
-                      </div>
-                    </td>
-                    <td>{user.role}</td>
-                    <td>{user.department}</td>
-                    <td>
-                      <span className={`status-badge ${user.status.toLowerCase()}`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td>{user.lastActive}</td>
-                    <td>
-                      <div className="dropdown-container" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="action-btn"
-                          onClick={() => toggleDropdown(user.id)}
-                        >
-                          <MoreVertical size={16} />
-                        </button>
+          <UserTableSetting
+            users={filteredUsers}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleSaveUser}  // Pass handleSaveUser to the UserTable for editing
+            currentUserRole={currentUser?.role}
+            currentUserId={currentUser?.id}
+          />
+        )}
 
-                        {activeDropdown === user.id && (
-                          <div className="dropdown-menu">
-                            <button onClick={() => handleToggleStatus(user.id)}>
-                              <Edit size={14} />
-                              {user.status === "Active" ? "Deactivate" : "Activate"}
-                            </button>
-                            <button className="delete" onClick={() => handleDeleteUser(user.id)}>
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {showAddModal && (
+          <AddUserModal onClose={handleCloseModal} onSave={handleSaveUser} />
         )}
       </div>
-
-      <div className="add-user-container">
-        <button className="add-user-btn" onClick={handleAddUser}>
-          <UserPlus size={16} />
-          <span>Add User</span>
-        </button>
-      </div>
-
-      {showAddModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>{editingUser ? "Edit User" : "Add New User"}</h3>
-              <button className="close-btn" onClick={handleCloseModal}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={editingUser ? editingUser.name : newUser.name}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={editingUser ? editingUser.email : newUser.email}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="form-group">
-                <label>Role</label>
-                <select
-                  name="role"
-                  value={editingUser ? editingUser.role : newUser.role}
-                  onChange={handleInputChange}
-                >
-                  <option>Admin</option>
-                  <option>Manager</option>
-                  <option>Viewer</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Department</label>
-                <input
-                  type="text"
-                  name="department"
-                  value={editingUser ? editingUser.department : newUser.department}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select
-                  name="status"
-                  value={editingUser ? editingUser.status : newUser.status}
-                  onChange={handleInputChange}
-                >
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
-              <button className="save-btn" onClick={handleSaveUser}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="section-footer">
-        <button className="save-btn" onClick={() => alert("User settings saved!")}>
-          Save
-        </button>
-      </div>
     </div>
-  )
-}
+  );
+};
 
-export default UserManagementSettings
+export default UserManagementSettings;

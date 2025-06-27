@@ -37,6 +37,11 @@ router.get('/stats', getInventoryStats);
 // GET: Low stock alerts
 router.get('/alerts', getLowStockAlerts);
 
+router.get("/", async (req, res) => {
+  const data = await Inventory.find({ /* ... */ });
+  res.json({ data, total: data.length });
+});
+
 // GET, PUT, DELETE: Handle individual product routes
 router
   .route('/:id')

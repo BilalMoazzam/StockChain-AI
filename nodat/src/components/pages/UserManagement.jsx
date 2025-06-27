@@ -181,9 +181,7 @@ const UserManagement = () => {
         <div className="user-management-container">
           <div className="user-management-header">
             <h2>Manage All Users</h2>
-            <button className="btn btn-add" onClick={handleAddUser}>
-              <UserPlus size={16} /> <span>Add User</span>
-            </button>
+            
           </div>
 
           <div className="user-management-filters">

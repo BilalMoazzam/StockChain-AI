@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useInventory } from "../../context/InventoryContext"; // Use Inventory Context
+import { useInventory } from "../../context/InventoryContext";
 import { Blocks, ArrowDownRight, Zap, CheckCircle } from "lucide-react";
 import "../styles/Dashboard.css";
 import SalesChart from "../analytics/SalesChart";
@@ -14,27 +14,29 @@ import { fetchBlockchainTransactions } from "../services/blockchain";
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { inventory } = useInventory(); // Access inventory data from context
+  const { inventory } = useInventory();
+
+  // — loading flags
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+
+  // — shared dashboard data
   const [dashboardData, setDashboardData] = useState({
     metrics: [],
-    loading: true,
-    error: null,
     latestBlockchainTransactions: [],
-    weeklyOperations: [],
-    supplyChainPerformance: [],
-    inventoryTrends: [],
-    orderManagement: [],
+    error: null,
   });
 
+  // — analytics chart data
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [aiPredictionChartData, setAiPredictionChartData] = useState([]);
   const [stockStatusChartData, setStockStatusChartData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState("month");
-  const [lastUpdated, setLastUpdated] = useState("");  // To track when data was last updated
 
-  // Helper function to determine stock status
+  const [dateRange, setDateRange] = useState("month");
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  // helper: stock status
   const getItemStatus = (qty) => {
     const LOW_STOCK_THRESHOLD = 9;
     if (qty <= 0) return "Out of Stock";
@@ -42,10 +44,13 @@ const Dashboard = () => {
     return "In Stock";
   };
 
-
+  // helper: fake inventory trend
   const generateInventoryData = (range, products) => {
     const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
-    const totalQty = products.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+    const totalQty = products.reduce(
+      (sum, it) => sum + (Number(it.quantity) || 0),
+      0
+    );
     const avg = totalQty / pts;
     return Array.from({ length: pts }, () => ({
       name: "",
@@ -53,238 +58,172 @@ const Dashboard = () => {
     }));
   };
 
-  // Fetch blockchain transactions and metrics for the dashboard
+  // helper: fake sales trend
+  const generateSalesData = (range, total) => {
+    const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
+    const avg = total / pts;
+    const minValue = Math.max(avg * 0.7, 100000);
+    const maxValue = avg * 1.3;
+    return Array.from({ length: pts }, () => {
+      const v = Math.round(minValue + Math.random() * (maxValue - minValue));
+      return { name: "", value: Math.max(v, minValue) };
+    });
+  };
+
+  // — 1) Fetch metrics + blockchain txs
   useEffect(() => {
-  // Ensure inventory is defined and has a length
-  if (inventory && inventory.length > 0) {
-    const fetchData = async () => {
+    const fetchMetrics = async () => {
       try {
-        setLoading(true);  // Set loading to true before data fetching
+        setLoadingMetrics(true);
 
-        // Fetch blockchain transactions
-        const [chain] = await Promise.all([fetchBlockchainTransactions()]);
-
-        console.log("Blockchain Transactions Data:", chain);
-
-        // Define txs to ensure it's available and map over it safely
+        // fetch on‐chain data
+        const chain = await fetchBlockchainTransactions();
         const txs = Array.isArray(chain) ? chain : chain.data || [];
 
-        const LOW_STOCK_THRESHOLD = 9;
-
-        // Safely check if inventory is available
+        // compute low/out-of-stock
         const lowStock = inventory.filter(
-          (item) => getItemStatus(item.quantity) === "Low Stock"
+          (i) => getItemStatus(i.quantity) === "Low Stock"
         );
         const outStock = inventory.filter(
-          (item) => getItemStatus(item.quantity) === "Out of Stock"
+          (i) => getItemStatus(i.quantity) === "Out of Stock"
         );
-
-        // Normalize blockchain transactions data
         const acceptedBlockchainTransactions = txs.filter(
           (tx) => tx.status === "Confirmed" || tx.status === "Accepted"
         ).length;
 
+        // assemble cards
         const metrics = [
           {
             id: "total-products",
             title: "Total Products",
             value: inventory.length,
             icon: <Blocks size={24} />,
-            bgColor: "#e0f2fe", // Light blue
-            textColor: "#0c4a6e", // Dark blue text
-            iconBg: "#7dd3fc", // Medium blue for icon background
-            iconColor: "#0ea5e9", // Blue icon
+            bgColor: "#e0f2fe",
+            textColor: "#0c4a6e",
+            iconBg: "#7dd3fc",
+            iconColor: "#0ea5e9",
           },
           {
             id: "low-stock",
             title: "Low Stock",
             value: lowStock.length,
             icon: <ArrowDownRight size={24} />,
-            bgColor: "#fffbeb", // Light yellow
-            textColor: "#9a3412", // Dark orange text
-            iconBg: "#fcd34d", // Medium yellow for icon background
-            iconColor: "#f59e0b", // Orange icon
+            bgColor: "#fffbeb",
+            textColor: "#9a3412",
+            iconBg: "#fcd34d",
+            iconColor: "#f59e0b",
           },
           {
             id: "out-of-stock",
             title: "Out of Stock",
             value: outStock.length,
             icon: <Zap size={24} />,
-            bgColor: "#fee2e2", // Light red
-            textColor: "#991b1b", // Dark red text
-            iconBg: "#fca5a5", // Medium red for icon background
-            iconColor: "#ef4444", // Red icon
+            bgColor: "#fee2e2",
+            textColor: "#991b1b",
+            iconBg: "#fca5a5",
+            iconColor: "#ef4444",
           },
           {
             id: "accepted-blockchain-tx",
             title: "Accepted Blockchain Tx",
             value: acceptedBlockchainTransactions,
             icon: <CheckCircle size={24} />,
-            bgColor: "#dcfce7", // Light green
-            textColor: "#166534", // Dark green text
-            iconBg: "#86efad", // Medium green for icon background
-            iconColor: "#22c55e", // Green icon
+            bgColor: "#dcfce7",
+            textColor: "#166534",
+            iconBg: "#86efad",
+            iconColor: "#22c55e",
           },
         ];
 
-        // Simulated data for charts (could be dynamically generated from fetched data)
-        const weeklyOperations = [
-          { day: "Mon", value: Math.floor(Math.random() * 50) + 100 },
-          { day: "Tue", value: Math.floor(Math.random() * 50) + 100 },
-          { day: "Wed", value: Math.floor(Math.random() * 50) + 100 },
-          { day: "Thu", value: Math.floor(Math.random() * 50) + 100 },
-          { day: "Fri", value: Math.floor(Math.random() * 50) + 100 },
-          { day: "Sat", value: Math.floor(Math.random() * 50) + 50 },
-          { day: "Sun", value: Math.floor(Math.random() * 50) + 40 },
-        ];
-
-        const supplyChainPerformance = [
-          { label: "On-time Delivery", value: 94.8 },
-          { label: "Inventory Accuracy", value: 97.2 },
-          { label: "Order Fulfillment", value: 92.5 },
-          { label: "Supplier Performance", value: 95.2 },
-        ];
-
-          const latestBlockchainTransactions = txs.map((tx) => ({
-            hash: tx.hash || tx._id || "N/A",
-            name: tx.name || "N/A", // Ensure that 'name' is set correctly
-            price: tx.price ? `Rs. ${tx.price}` : "Rs. N/A", // Fallback to 'Rs. N/A' if price is not available
-            status: tx.status || "N/A", // Ensure that 'status' is set correctly
-            timestamp: tx.time ? new Date(tx.timestamp).toLocaleString() : "Not Available",
-            from: tx.from || "N/A",
-            to: tx.to || "N/A",
-          }));
-        
-
-        setDashboardData({
+        setDashboardData((d) => ({
+          ...d,
           metrics,
-          loading: false,
-          error: null,
-          weeklyOperations,
-          supplyChainPerformance,
-          latestBlockchainTransactions,
-        });
-
-        // Update the last updated time
+          latestBlockchainTransactions: txs,
+        }));
         setLastUpdated(new Date().toLocaleString());
       } catch (err) {
-        console.error("Error fetching blockchain transactions", err);
-        setDashboardData((prev) => ({
-          ...prev,
-          loading: false,
-          error: "Failed to load additional data",
-        }));
+        console.error(err);
+        setDashboardData((d) => ({ ...d, error: "Failed to load metrics" }));
+      } finally {
+        setLoadingMetrics(false);
       }
     };
 
-    fetchData();
-  }
-}, [inventory]); // Dependency on inventory to trigger the useEffect hook
+    fetchMetrics();
+  }, [inventory]);
 
-
-  // Fetch Analytics Data for Sales, Inventory, AI Prediction, and Stock Status
-  const fetchAnalyticsData = async () => {
-    setLoading(true);
+  // — 2) Fetch analytics (charts)
+  useEffect(() => {
+  const fetchAnalytics = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/products");
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      setLoadingAnalytics(true);
+      const res = await fetch("http://localhost:5000/api/analytics/optimized");
+      if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
 
-      console.log("Fetched Data:", data);
+      const { predictions } = data; // assuming predictions field exists in the response
 
-      let totalSales = 0;
-      let inStock = 0, lowStock = 0, outStock = 0;
-      data.forEach((item) => {
-        const qty = Number(item.quantity) || 0;
-        const price = Number(item.Price) || 0;
-        const val = qty * price;
-        totalSales += val;
-
-        if (item.stock === "In Stock") inStock++;
-        else if (item.stock === "Low Stock") lowStock++;
-        else if (item.stock === "Out of Stock") outStock++;
-      });
-
-      // Generate Sales Data for chart
-      const salesData = generateSalesData("month", totalSales);
-      const inventoryData = generateInventoryData("month", data);
-
-      // AI Prediction Chart Data
-      const aiPredictionCounts = data.reduce((acc, item) => {
-        const key = item.ai_prediction || "Unknown";
+      // Aggregate AI prediction counts
+      const aiPredCounts = predictions.reduce((acc, item) => {
+        const key = item.ai_prediction || "Unknown"; // Default to "Unknown" if no prediction
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
-      const aiPredictionChartData = [
-        { name: "Enough", count: aiPredictionCounts["Enough"] || 0 },
-        { name: "Monitor", count: aiPredictionCounts["Monitor"] || 0 },
-        { name: "Reorder", count: aiPredictionCounts["Reorder"] || 0 },
-      ];
+      
+      console.log("AI Prediction Counts:", aiPredCounts); // Log the prediction counts
 
-      // Stock Status Chart Data
-      const stockStatusChartData = [
-        { name: "In Stock", count: inStock },
-        { name: "Low Stock", count: lowStock },
-        { name: "Out of Stock", count: outStock },
-      ];
+      // Update state with AI prediction chart data
+      setAiPredictionChartData([
+        { name: "Enough", count: aiPredCounts["Enough"] || 0 },
+        { name: "Monitor", count: aiPredCounts["Monitor"] || 0 },
+        { name: "Reorder", count: aiPredCounts["Reorder"] || 0 },
+        { name: "Unknown", count: aiPredCounts["Unknown"] || 0 } // Handle Unknowns correctly
+      ]);
 
-      // Update dashboard data state
-      setSalesData(salesData);
-      setInventoryData(inventoryData);
-      setAiPredictionChartData(aiPredictionChartData);
-      setStockStatusChartData(stockStatusChartData);
+      // Update stock status chart data
+      const stockCounts = predictions.reduce((acc, item) => {
+        const stockStatus = item.stock || "Unknown"; // Ensure `stock` exists
+        if (stockStatus === "In Stock" || stockStatus === "Low Stock" || stockStatus === "Out of Stock") {
+          acc[stockStatus] = (acc[stockStatus] || 0) + 1;
+        }
+        return acc;
+      }, { "In Stock": 0, "Low Stock": 0, "Out of Stock": 0 });
 
+      setStockStatusChartData([
+        { name: "In Stock", count: stockCounts["In Stock"] || 0 },
+        { name: "Low Stock", count: stockCounts["Low Stock"] || 0 },
+        { name: "Out of Stock", count: stockCounts["Out of Stock"] || 0 },
+      ]);
+
+      setSalesData(generateSalesData(dateRange, data.totalSales)); // Assuming totalSales is present
+      setInventoryData(generateInventoryData(dateRange, predictions)); // Assuming `predictions` have inventory data
+      
       setLastUpdated(new Date().toLocaleString());
     } catch (err) {
       console.error("Fetch error:", err);
-      setSalesData([]);
-      setInventoryData([]);
-      setAiPredictionChartData([]);
-      setStockStatusChartData([]);
-    } finally {
-      setLoading(false);
+      setLoadingAnalytics(false);
     }
   };
 
-  // Trigger data fetch on date range change
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [dateRange]);
-
-const generateSalesData = (range, total) => {
-  const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
-  const avg = total / pts;
-
-  // Set reasonable min and max values to avoid extreme fluctuations
-  const minValue = Math.max(avg * 0.7, 100000); // Ensure minimum is 70% of average or 100,000
-  const maxValue = avg * 1.3;  // Allow a maximum fluctuation of 30% above the average
-
-  return Array.from({ length: pts }, () => {
-    const value = Math.round(minValue + Math.random() * (maxValue - minValue));
-
-    // Clamp the value to avoid it going below the minimum
-    return { name: "", value: Math.max(value, minValue) }; // Ensure value does not drop below minValue
-  });
-};
+  fetchAnalytics();
+}, [dateRange]);
 
 
-
-  if (dashboardData.loading) {
+  // — 3) Render
+  if (loadingMetrics) {
     return (
       <div className="dashboard-loading-container">
         <div className="dashboard-spinner" />
-        <p>Loading dashboard data...</p>
+        <p>Loading metrics…</p>
       </div>
     );
   }
 
   if (dashboardData.error) {
     return (
-      <div className="dashboard-container">
-        <div className="dashboard-error-message">
-          <h3>Error Loading Dashboard</h3>
-          <p>{dashboardData.error}</p>
-        </div>
+      <div className="dashboard-error-message">
+        <h3>Error Loading Dashboard</h3>
+        <p>{dashboardData.error}</p>
       </div>
     );
   }
@@ -330,7 +269,7 @@ const generateSalesData = (range, total) => {
         <div className="section">
           <h3>AI Inventory Monitoring</h3>
           <div className="charts-grid">
-            <AIPredictionChart data={aiPredictionChartData} />
+           <AIPredictionChart data={aiPredictionChartData} />
           </div>
         </div>
 
@@ -380,10 +319,11 @@ const generateSalesData = (range, total) => {
                           </span>
                         </td>
                         {console.log(tx)} {/* Log the entire tx object */}
-<td>
-  {tx.time ? new Date(tx.time).toLocaleString() : "Not Available"}
-</td>
-
+                        <td>
+                          {tx.time
+                            ? new Date(tx.time).toLocaleString()
+                            : "Not Available"}
+                        </td>
                       </tr>
                     ))
                 )}

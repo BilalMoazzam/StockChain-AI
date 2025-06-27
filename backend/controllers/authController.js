@@ -12,6 +12,19 @@ const generateToken = (user) => {
   );
 };
 
+// controllers/authController.js (or wherever you do jwt.sign)
+const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+  expiresIn: "1d",            // or whatever you prefer
+});
+
+// ↓ ADD THIS ↓
+console.log("Signing JWT with secret:", process.env.JWT_SECRET);
+console.log("New token (first 50 chars):", token.substring(0,50), "…");
+
+// then send it back
+res.json({ msg: "Login successful", token, employee: user });
+
+
 
 // @desc    Register user
 // @route   POST /api/auth/register

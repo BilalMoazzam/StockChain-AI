@@ -404,4 +404,11 @@
 }
 
 
+.inventory-scroll-bar-finished {
+  display: flex;                     /* flex */
+  flex-direction: column;            /* flex-col */
+  height: 100vh;                     /* h-screen */
+  background-color: #F9FAFB;         /* bg-gray-50 */
+  overflow: hidden;                /* overflow-hidden */
+}
 

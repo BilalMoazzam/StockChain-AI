@@ -5,12 +5,14 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../styles/Login.css";
 import { useApp } from "../../context/AppContext";
 import { UserContext } from "../../context/UserContext";
+import { useInventory } from "../../context/InventoryContext";
 
 const Login = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { actions } = useApp();
   const { setUsername } = useContext(UserContext);
+  const { fetchInventoryData } = useInventory(); 
 
   const [formData, setFormData] = useState({
     email: "",
@@ -68,6 +70,8 @@ const Login = ({ onLoginSuccess }) => {
     if (employeeName) {
       setUsername(employeeName); // ✅ "Bilal Moazzammmm"
       localStorage.setItem("username", employeeName);
+
+       await fetchInventoryData();
       if (onLoginSuccess) onLoginSuccess();
       navigate("/");
     } else {

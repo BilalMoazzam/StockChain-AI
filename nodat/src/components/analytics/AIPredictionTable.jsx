@@ -1,33 +1,33 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 
 const AIPredictionTable = ({ predictions }) => {
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10 // Display 10 items per page
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Display 10 items per page
 
   // Ensure predictions is an array before slicing
   const currentPredictions = Array.isArray(predictions)
     ? predictions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : []
+    : [];
 
-  const totalPages = Array.isArray(predictions) ? Math.ceil(predictions.length / itemsPerPage) : 0
+  const totalPages = Array.isArray(predictions) ? Math.ceil(predictions.length / itemsPerPage) : 0;
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber)
+      setCurrentPage(pageNumber);
     }
-  }
+  };
 
   const renderPaginationButtons = () => {
-    const pageNumbers = []
-    const maxPageButtons = 5 // Max number of page buttons to show
+    const pageNumbers = [];
+    const maxPageButtons = 5; // Max number of page buttons to show
 
-    let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2))
-    const endPage = Math.min(totalPages, startPage + maxPageButtons - 1)
+    let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+    const endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
 
     if (endPage - startPage + 1 < maxPageButtons) {
-      startPage = Math.max(1, endPage - maxPageButtons + 1)
+      startPage = Math.max(1, endPage - maxPageButtons + 1);
     }
 
     for (let i = startPage; i <= endPage; i++) {
@@ -38,14 +38,14 @@ const AIPredictionTable = ({ predictions }) => {
           className={`pagination-button ${currentPage === i ? "active" : ""}`}
         >
           {i}
-        </button>,
-      )
+        </button>
+      );
     }
-    return pageNumbers
-  }
+    return pageNumbers;
+  };
 
   if (!predictions || predictions.length === 0) {
-    return <div className="no-data">No product data available for AI predictions.</div>
+    return <div className="no-data">No product data available for AI predictions.</div>;
   }
 
   return (
@@ -69,10 +69,22 @@ const AIPredictionTable = ({ predictions }) => {
               <td>{item.quantity}</td>
               <td>${(item.Price || 0).toLocaleString()}</td> {/* Ensure price is formatted and handles 0 */}
               <td>
-                <span className={`stock-status ${item.stock.toLowerCase().replace(/\s/g, "-")}`}>{item.stock}</span>
+                <span
+                  className={`stock-status ${
+                    item.stock ? item.stock.toLowerCase().replace(/\s/g, "-") : "unknown"
+                  }`}
+                >
+                  {item.stock}
+                </span>
               </td>
               <td>
-                <span className={`ai-prediction ${item.ai_prediction.toLowerCase()}`}>{item.ai_prediction}</span>
+                <span
+                  className={`ai-prediction ${
+                    item.ai_prediction ? item.ai_prediction.toLowerCase() : "unknown"
+                  }`}
+                >
+                  {item.ai_prediction || "Unknown"} {/* Ensure AI prediction is rendered */}
+                </span>
               </td>
             </tr>
           ))}
@@ -98,7 +110,7 @@ const AIPredictionTable = ({ predictions }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default AIPredictionTable
+export default AIPredictionTable;

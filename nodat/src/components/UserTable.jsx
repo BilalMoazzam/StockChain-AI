@@ -50,7 +50,7 @@ const UserTable = ({ users, onDelete, onToggleStatus, currentUserRole, currentUs
                 <td>{formatRelativeTime(user.lastActive)}</td>
                 <td className="actions-cell">
                   <div className="inline-actions">
-                    <button
+                    {/* <button
                       className="action-btn-disable" // Changed class to action-btn
                       onClick={() => onToggleStatus(user.id)}
                       disabled={!canPerformAction(user.id)}
@@ -62,7 +62,7 @@ const UserTable = ({ users, onDelete, onToggleStatus, currentUserRole, currentUs
                     >
                       <Edit size={16} />
                       <span>{user.status === "Active" ? "Deactivate" : "Activate"}</span>
-                    </button>
+                    </button> */}
                     <button
                       className="action-btn-delete"
                       onClick={() => onDelete(user.id)}

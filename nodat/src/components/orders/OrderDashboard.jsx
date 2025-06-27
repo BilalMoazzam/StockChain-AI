@@ -17,7 +17,8 @@ export function OrderDashboard({
   setSelectedProducts, // This prop is used to update the parent's state
   selectedProducts, // This prop is the current list of selected products
   onClearSelected, // New prop for clearing selected products
-  handleBuyNow, // Prop for navigating to blockchain page
+  // handleBuyNow,
+  onBuyNow,         
   onUpdateInventoryQuantity, // NEW PROP: Function to update inventory quantity in context
   onRemoveProductFromDraft, // NEW PROP: Function for individual product removal from draft
 }) {
@@ -253,7 +254,7 @@ export function OrderDashboard({
                       Remove
                     </button>
 
-                    <button onClick={() => handleBuyNow(product)} className="buy-from-order-btn">
+                    <button onClick={() => onBuyNow(product)} className="buy-from-order-btn">
                       Buy Now
                     </button>
                   </td>
