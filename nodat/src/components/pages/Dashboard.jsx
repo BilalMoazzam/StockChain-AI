@@ -10,11 +10,13 @@ import InventoryChart from "../analytics/InventoryChart";
 import AIPredictionChart from "../analytics/AIPredictionChart";
 import StockStatusPieChart from "../analytics/StockStatusPieChart";
 import { fetchBlockchainTransactions } from "../services/blockchain";
+import { useThreshold } from "../../context/ThresholdContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { inventory } = useInventory();
+  const { threshold } = useThreshold();
 
   // — loading flags
   const [loadingMetrics, setLoadingMetrics] = useState(true);
@@ -37,10 +39,9 @@ const Dashboard = () => {
   const [lastUpdated, setLastUpdated] = useState("");
 
   // helper: stock status
-  const getItemStatus = (qty) => {
-    const LOW_STOCK_THRESHOLD = 9;
+ const getItemStatus = (qty) => {
     if (qty <= 0) return "Out of Stock";
-    if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock";
+    if (qty <= threshold) return "Low Stock"; // Dynamic threshold applied
     return "In Stock";
   };
 

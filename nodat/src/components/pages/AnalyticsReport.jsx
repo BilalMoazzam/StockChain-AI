@@ -13,6 +13,7 @@ import "../styles/AnalyticsReport.css";
 import AIPredictionTable from "../analytics/AIPredictionTable";
 import CustomizableReport from "../analytics/CustomizableReport";
 import ExportReports from "../analytics/ExportReports";
+import { useThreshold } from "../../context/ThresholdContext";
 
 const AnalyticsReport = () => {
   const [metrics, setMetrics] = useState({
@@ -28,10 +29,17 @@ const AnalyticsReport = () => {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState("month");
   const [lastUpdated, setLastUpdated] = useState("");
+  const { threshold } = useThreshold();
 
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [dateRange]);
+
+   useEffect(() => {
+    console.log("Threshold value updated:", threshold);
+    fetchAnalyticsData(); // Re-fetch data when threshold changes
+  }, [threshold, dateRange]); 
+
+  // useEffect(() => {
+  //   fetchAnalyticsData();
+  // }, [dateRange]);
 
   const fetchAnalyticsData = async () => {
   setLoading(true);

@@ -1,49 +1,45 @@
-"use client"
+// src/components/pages/ForecastingSettings.jsx
+import React, { useState, useEffect } from "react";
+import { useThreshold } from "../../context/ThresholdContext"; // Import context
 
-import { useState, useEffect } from "react"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts"
+// Recharts imports
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const ForecastingSettings = ({ onSettingsChange }) => {
-  const [threshold, setThreshold] = useState(50)
-  const [forecastData, setForecastData] = useState([])
-  const [loading, setLoading] = useState(true)
+const ForecastingSettings = () => {
+  const { threshold, updateThreshold } = useThreshold();  // Get threshold from context
+  const [tempThreshold, setTempThreshold] = useState(threshold); // Temporary threshold state for the slider
+  const [forecastData, setForecastData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    generateMockData()
-  }, [])
+    generateMockData();
+  }, []);
 
   const generateMockData = () => {
-    const lineData = []
+    const lineData = [];
     for (let i = 0; i < 12; i++) {
-      const value = Math.floor(Math.random() * 50) + 30
+      const value = Math.floor(Math.random() * 50) + 30;
       lineData.push({
         name: `Month ${i + 1}`,
         value: value,
         forecast: value + (Math.random() * 20 - 10),
-      })
+      });
     }
-    setForecastData(lineData)
-    setLoading(false)
-  }
+    setForecastData(lineData);
+    setLoading(false);
+  };
 
+  // Update the threshold state when the slider changes
   const handleThresholdChange = (e) => {
-    const newThreshold = Number.parseInt(e.target.value)
-    setThreshold(newThreshold)
-    onSettingsChange()
-  }
+    const newThreshold = Number(e.target.value);
+    setTempThreshold(newThreshold); // Update temporary state for the slider
+  };
 
+  // Handle saving the threshold
   const handleSave = () => {
-    console.log("Saving forecasting settings with threshold:", threshold)
-    alert("Forecasting settings saved!")
-  }
+    updateThreshold(tempThreshold); // Save the new threshold to the context
+    alert("Forecasting settings saved!");
+  };
 
   return (
     <div className="settings-section forecasting-settings">
@@ -58,11 +54,11 @@ const ForecastingSettings = ({ onSettingsChange }) => {
             type="range"
             min="0"
             max="100"
-            value={threshold}
-            onChange={handleThresholdChange}
+            value={tempThreshold} // Bind the slider value to the temp state
+            onChange={handleThresholdChange} // Handle slider change
             className="threshold-slider"
           />
-          <span className="threshold-value">{threshold}%</span>
+          <span className="threshold-value">{tempThreshold}%</span>
         </div>
       </div>
 
@@ -72,30 +68,13 @@ const ForecastingSettings = ({ onSettingsChange }) => {
             <div className="chart-loading">Loading chart...</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart
-                data={forecastData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
+              <LineChart data={forecastData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#FFC107"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  name="Actual"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="forecast"
-                  stroke="#4CAF50"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  name="Forecast"
-                />
+                <Line type="monotone" dataKey="value" stroke="#FFC107" strokeWidth={2} dot={{ r: 3 }} name="Actual" />
+                <Line type="monotone" dataKey="forecast" stroke="#4CAF50" strokeWidth={2} dot={{ r: 3 }} name="Forecast" />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -108,7 +87,7 @@ const ForecastingSettings = ({ onSettingsChange }) => {
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ForecastingSettings
+export default ForecastingSettings;

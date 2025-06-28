@@ -5,6 +5,7 @@ import Header from "../layout/Header"
 import SupplyChainMetrics from "../supplyChain/SupplyChainMetrics"
 import InventoryStockSummary from "../supplyChain/InventoryStockSummary"
 import "../styles/SupplyChainOverview.css"
+import { useThreshold } from "../../context/ThresholdContext";
 
 const SupplyChainOverview = () => {
   const [metrics, setMetrics] = useState({
@@ -16,13 +17,13 @@ const SupplyChainOverview = () => {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+    const { threshold } = useThreshold();
 
-  // ✅ Helper function to determine stock status
   const getItemStatus = (product) => {
-    if (!product.quantity || product.quantity === 0) return "Out of Stock"
-    if (product.quantity <= 9) return "Low Stock" // Changed from 20 to 9
-    return "In Stock"
-  }
+    if (!product.quantity || product.quantity === 0) return "Out of Stock";
+    if (product.quantity <= threshold) return "Low Stock"; // Use threshold here
+    return "In Stock";
+  };
 
   useEffect(() => {
     const fetchSupplyChainData = async () => {

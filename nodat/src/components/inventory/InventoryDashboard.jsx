@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useInventory } from "../../context/InventoryContext";
+import { useThreshold } from "../../context/ThresholdContext";
 
 export function InventoryDashboard({
   onAddItem,
@@ -40,15 +41,19 @@ export function InventoryDashboard({
   const [visibleCount, setVisibleCount] = useState(20);
   const tableContainerRef = useRef(null);
 
-  const LOW_STOCK_THRESHOLD = 9;
+  const { threshold } = useThreshold();
+
+  // const LOW_STOCK_THRESHOLD = 9;
 
   // Helper to determine item status (unified logic)
   const getItemStatus = (item) => {
     const qty = Number(item.quantity);
     if (isNaN(qty) || qty <= 0) return "Out of Stock";
-    if (qty <= LOW_STOCK_THRESHOLD) return "Low Stock";
+    if (qty <= threshold) return "Low Stock";
     return "In Stock";
   };
+
+  
 
   const handleScroll = (e) => {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
