@@ -293,7 +293,7 @@ export default function BlockchainTransactionPage() {
                   <tr>
                     <th>Name</th>
                     <th>Price</th>
-                    <th>SKU</th>
+                    
                     <th>ID</th>
                     <th>Size</th>
                     <th>Status</th>
@@ -305,7 +305,7 @@ export default function BlockchainTransactionPage() {
                     <tr key={idx}>
                       <td>{product.name}</td>
                       <td>Rs. {product.price}</td>
-                      <td>{product.sku || "N/A"}</td>
+                      
                       <td>{product.id || "N/A"}</td>
                       <td>{product.size || "Standard"}</td>
                       <td>{product.status || "In Stock"}</td>
@@ -371,9 +371,9 @@ export default function BlockchainTransactionPage() {
                   <th>Status</th>
                   <th>Name</th>
                   <th>ID</th>
-                  <th>Size</th>
+                
                   <th>Price</th>
-                  <th>SKU</th>
+                  
                 </tr>
               </thead>
               <tbody>
@@ -396,9 +396,9 @@ export default function BlockchainTransactionPage() {
                       </td>
                       <td>{log.product.name}</td>
                       <td>{log.product.id || "N/A"}</td>
-                      <td>{log.product.size || "N/A"}</td>
+                     
                       <td>Rs. {log.product.price}</td>
-                      <td>{log.product.sku || "N/A"}</td>
+                      
                     </tr>
                   ))
                 )}

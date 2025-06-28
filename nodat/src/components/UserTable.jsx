@@ -25,7 +25,7 @@ const UserTable = ({ users, onDelete, onToggleStatus, currentUserRole, currentUs
             <th style={{ width: "25%" }}>User</th>
             <th style={{ width: "15%" }}>Role</th>
             <th style={{ width: "20%" }}>Department</th>
-            <th style={{ width: "10%" }}>Status</th>
+            {/* <th style={{ width: "10%" }}>Status</th> */}
             <th style={{ width: "15%" }}>Last Active</th>
             <th style={{ width: "15%" }}>Actions</th>
           </tr>
@@ -47,7 +47,7 @@ const UserTable = ({ users, onDelete, onToggleStatus, currentUserRole, currentUs
                 <td>
                   <span className={`status-badge ${getStatusClass(user.status)}`}>{user.status || "N/A"}</span>
                 </td>
-                <td>{formatRelativeTime(user.lastActive)}</td>
+                {/* <t  d>{formatRelativeTime(user.lastActive)}</td> */}
                 <td className="actions-cell">
                   <div className="inline-actions">
                     {/* <button

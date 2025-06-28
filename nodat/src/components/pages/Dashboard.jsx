@@ -18,18 +18,18 @@ const Dashboard = () => {
   const { inventory } = useInventory();
   const { threshold } = useThreshold();
 
-  // — loading flags
+  // Loading flags
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
-  // — shared dashboard data
+  // Shared dashboard data
   const [dashboardData, setDashboardData] = useState({
     metrics: [],
     latestBlockchainTransactions: [],
     error: null,
   });
 
-  // — analytics chart data
+  // Analytics chart data
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [aiPredictionChartData, setAiPredictionChartData] = useState([]);
@@ -38,70 +38,63 @@ const Dashboard = () => {
   const [dateRange, setDateRange] = useState("month");
   const [lastUpdated, setLastUpdated] = useState("");
 
-  // helper: stock status
- const getItemStatus = (qty) => {
+  // Helper: stock status
+  const getItemStatus = (qty) => {
     if (qty <= 0) return "Out of Stock";
     if (qty <= threshold) return "Low Stock"; // Dynamic threshold applied
     return "In Stock";
   };
 
-  // helper: fake inventory trend
+  // Helper: generate inventory trend
   const generateInventoryData = (range, products) => {
     const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
-    const totalQty = products.reduce(
-      (sum, it) => sum + (Number(it.quantity) || 0),
-      0
-    );
+    const totalQty = products.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
     const avg = totalQty / pts;
-    return Array.from({ length: pts }, () => ({
-      name: "",
+    return Array.from({ length: pts }, (_, index) => ({
+      name: `Day ${index + 1}`,
       value: Math.round(avg * (0.7 + Math.random() * 0.6)),
     }));
   };
 
-  // helper: fake sales trend
+  // Helper: generate sales trend
   const generateSalesData = (range, total) => {
     const pts = range === "week" ? 7 : range === "year" ? 12 : 30;
-    const avg = total / pts;
+    const avg = total > 0 ? total / pts : 1000000 / pts; // Default to a reasonable value if total is 0
     const minValue = Math.max(avg * 0.7, 100000);
     const maxValue = avg * 1.3;
-    return Array.from({ length: pts }, () => {
-      const v = Math.round(minValue + Math.random() * (maxValue - minValue));
-      return { name: "", value: Math.max(v, minValue) };
-    });
+    return Array.from({ length: pts }, (_, index) => ({
+      name: `Day ${index + 1}`, // Ensure name is set for each point
+      value: Math.round(minValue + Math.random() * (maxValue - minValue)),
+    }));
   };
 
-  // — 1) Fetch metrics + blockchain txs
+  // 1) Fetch metrics + blockchain transactions
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
         setLoadingMetrics(true);
 
-        // fetch on‐chain data
+        // Fetch on-chain data
         const chain = await fetchBlockchainTransactions();
         const txs = Array.isArray(chain) ? chain : chain.data || [];
 
-        // compute low/out-of-stock
-        const lowStock = inventory.filter(
-          (i) => getItemStatus(i.quantity) === "Low Stock"
-        );
-        const outStock = inventory.filter(
-          (i) => getItemStatus(i.quantity) === "Out of Stock"
-        );
+        // Compute low/out-of-stock
+        const lowStock = inventory.filter((i) => getItemStatus(i.quantity) === "Low Stock");
+        const outStock = inventory.filter((i) => getItemStatus(i.quantity) === "Out of Stock");
         const acceptedBlockchainTransactions = txs.filter(
           (tx) => tx.status === "Confirmed" || tx.status === "Accepted"
         ).length;
 
-        // assemble cards
+        // Assemble cards
         const metrics = [
           {
             id: "total-products",
             title: "Total Products",
             value: inventory.length,
             icon: <Blocks size={24} />,
-            bgColor: "#e0f2fe",
-            textColor: "#0c4a6e",
-            iconBg: "#7dd3fc",
+            bgColor: "#f2f60f",
+            textColor: "#000",
+            iconBg: "#000",
             iconColor: "#0ea5e9",
           },
           {
@@ -109,9 +102,9 @@ const Dashboard = () => {
             title: "Low Stock",
             value: lowStock.length,
             icon: <ArrowDownRight size={24} />,
-            bgColor: "#fffbeb",
-            textColor: "#9a3412",
-            iconBg: "#fcd34d",
+            bgColor: "#f2f60f",
+            textColor: "#000",
+            iconBg: "#000",
             iconColor: "#f59e0b",
           },
           {
@@ -119,9 +112,9 @@ const Dashboard = () => {
             title: "Out of Stock",
             value: outStock.length,
             icon: <Zap size={24} />,
-            bgColor: "#fee2e2",
-            textColor: "#991b1b",
-            iconBg: "#fca5a5",
+            bgColor: "#f2f60f",
+            textColor: "#000",
+            iconBg: "#000",
             iconColor: "#ef4444",
           },
           {
@@ -129,9 +122,9 @@ const Dashboard = () => {
             title: "Accepted Blockchain Tx",
             value: acceptedBlockchainTransactions,
             icon: <CheckCircle size={24} />,
-            bgColor: "#dcfce7",
-            textColor: "#166534",
-            iconBg: "#86efad",
+            bgColor: "#f2f60f",
+            textColor: "#000",
+            iconBg: "#000",
             iconColor: "#22c55e",
           },
         ];
@@ -153,69 +146,94 @@ const Dashboard = () => {
     fetchMetrics();
   }, [inventory]);
 
-  // — 2) Fetch analytics (charts)
+  // 2) Fetch analytics (charts)
   useEffect(() => {
-  const fetchAnalytics = async () => {
-    try {
-      setLoadingAnalytics(true);
-      const res = await fetch("http://localhost:5000/api/analytics/optimized");
-      if (!res.ok) throw new Error(res.statusText);
-      const data = await res.json();
+    const fetchAnalytics = async () => {
+      try {
+        setLoadingAnalytics(true);
+        const res = await fetch("http://localhost:5000/api/analytics/optimized");
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
 
-      const { predictions } = data; // assuming predictions field exists in the response
+        console.log("API Response:", data); // Debug log to check the response
 
-      // Aggregate AI prediction counts
-      const aiPredCounts = predictions.reduce((acc, item) => {
-        const key = item.ai_prediction || "Unknown"; // Default to "Unknown" if no prediction
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {});
-      
-      console.log("AI Prediction Counts:", aiPredCounts); // Log the prediction counts
+        const { predictions, totalSales = 0 } = data; // Default totalSales to 0 if not present
 
-      // Update state with AI prediction chart data
-      setAiPredictionChartData([
-        { name: "Enough", count: aiPredCounts["Enough"] || 0 },
-        { name: "Monitor", count: aiPredCounts["Monitor"] || 0 },
-        { name: "Reorder", count: aiPredCounts["Reorder"] || 0 },
-        { name: "Unknown", count: aiPredCounts["Unknown"] || 0 } // Handle Unknowns correctly
-      ]);
+        // Enhance predictions with AI predictions
+        predictions.forEach((item) => {
+          if (item.quantity > 100) {
+            item.ai_prediction = "Enough";
+          } else if (item.quantity > 50) {
+            item.ai_prediction = "Monitor";
+          } else {
+            item.ai_prediction = "Reorder";
+          }
+        });
 
-      // Update stock status chart data
-      const stockCounts = predictions.reduce((acc, item) => {
-        const stockStatus = item.stock || "Unknown"; // Ensure `stock` exists
-        if (stockStatus === "In Stock" || stockStatus === "Low Stock" || stockStatus === "Out of Stock") {
-          acc[stockStatus] = (acc[stockStatus] || 0) + 1;
-        }
-        return acc;
-      }, { "In Stock": 0, "Low Stock": 0, "Out of Stock": 0 });
+        // Aggregate AI prediction counts
+        const aiPredCounts = predictions.reduce((acc, item) => {
+          const key = item.ai_prediction || "Unknown";
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
 
-      setStockStatusChartData([
-        { name: "In Stock", count: stockCounts["In Stock"] || 0 },
-        { name: "Low Stock", count: stockCounts["Low Stock"] || 0 },
-        { name: "Out of Stock", count: stockCounts["Out of Stock"] || 0 },
-      ]);
+        console.log("AI Prediction Counts:", aiPredCounts); // Debug log
 
-      setSalesData(generateSalesData(dateRange, data.totalSales)); // Assuming totalSales is present
-      setInventoryData(generateInventoryData(dateRange, predictions)); // Assuming `predictions` have inventory data
-      
-      setLastUpdated(new Date().toLocaleString());
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setLoadingAnalytics(false);
-    }
-  };
+        // Update AI prediction chart data
+        setAiPredictionChartData([
+          { name: "Enough", count: aiPredCounts["Enough"] || 0 },
+          { name: "Monitor", count: aiPredCounts["Monitor"] || 0 },
+          { name: "Reorder", count: aiPredCounts["Reorder"] || 0 },
+          { name: "Unknown", count: aiPredCounts["Unknown"] || 0 },
+        ]);
 
-  fetchAnalytics();
-}, [dateRange]);
+        // Update stock status chart data
+        const stockCounts = predictions.reduce(
+          (acc, item) => {
+            const stockStatus = item.stock || getItemStatus(item.quantity); // Fallback to calculated status
+            if (
+              stockStatus === "In Stock" ||
+              stockStatus === "Low Stock" ||
+              stockStatus === "Out of Stock"
+            ) {
+              acc[stockStatus] = (acc[stockStatus] || 0) + 1;
+            }
+            return acc;
+          },
+          { "In Stock": 0, "Low Stock": 0, "Out of Stock": 0 }
+        );
 
+        setStockStatusChartData([
+          { name: "In Stock", count: stockCounts["In Stock"] || 0 },
+          { name: "Low Stock", count: stockCounts["Low Stock"] || 0 },
+          { name: "Out of Stock", count: stockCounts["Out of Stock"] || 0 },
+        ]);
 
-  // — 3) Render
-  if (loadingMetrics) {
+        // Generate sales and inventory data
+        setSalesData(generateSalesData(dateRange, totalSales));
+        setInventoryData(generateInventoryData(dateRange, predictions));
+
+        setLastUpdated(new Date().toLocaleString());
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setAiPredictionChartData([]);
+        setStockStatusChartData([]);
+        setSalesData([]);
+        setInventoryData([]);
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [dateRange, threshold]);
+
+  // 3) Render
+  if (loadingMetrics || loadingAnalytics) {
     return (
       <div className="dashboard-loading-container">
         <div className="dashboard-spinner" />
-        <p>Loading metrics…</p>
+        <p>Loading dashboard data…</p>
       </div>
     );
   }
@@ -253,10 +271,16 @@ const Dashboard = () => {
 
       <div className="dashboard-content-grid">
         {/* Sales Trends */}
-        {/* <div className="section">
+        <div className="section">
           <h3>Sales Trends</h3>
-          <SalesChart data={salesData} dateRange={dateRange} />
-        </div> */}
+          <div className="charts-grid">
+            {salesData.length > 0 ? (
+              <SalesChart data={salesData} dateRange={dateRange} />
+            ) : (
+              <p>No sales data available.</p>
+            )}
+          </div>
+        </div>
 
         {/* Inventory Trends */}
         <div className="section">
@@ -270,7 +294,7 @@ const Dashboard = () => {
         <div className="section">
           <h3>AI Inventory Monitoring</h3>
           <div className="charts-grid">
-           <AIPredictionChart data={aiPredictionChartData} />
+            <AIPredictionChart data={aiPredictionChartData} />
           </div>
         </div>
 
@@ -319,7 +343,6 @@ const Dashboard = () => {
                             {tx.status}
                           </span>
                         </td>
-                        {console.log(tx)} {/* Log the entire tx object */}
                         <td>
                           {tx.time
                             ? new Date(tx.time).toLocaleString()
